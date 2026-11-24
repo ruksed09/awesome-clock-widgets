@@ -38,9 +38,11 @@ object WidgetRenderer {
         heightDp: Int,
         locale: Locale = Locale.getDefault(),
         interactive: Boolean = true,
+        /** The placed widget's id, for actions that change it (the spinner's turn). */
+        appWidgetId: Int = android.appwidget.AppWidgetManager.INVALID_APPWIDGET_ID,
     ): RemoteViews {
         when (spec.type) {
-            WidgetType.LAUNCHER -> return Collection.radial(context, spec, widthDp, heightDp, interactive)
+            WidgetType.LAUNCHER -> return Collection.radial(context, spec, widthDp, heightDp, interactive, appWidgetId)
             WidgetType.SHORTCUT, WidgetType.BADGE -> return Collection.art(context, spec, widthDp, heightDp, interactive)
             else -> Unit
         }

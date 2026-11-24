@@ -162,7 +162,7 @@ fun WidgetStudio(
             if (wide) {
                 Row(Modifier.fillMaxSize()) {
                     Box(Modifier.weight(1f).fillMaxHeight().padding(20.dp)) {
-                        PreviewPane(spec, wallpaperUri, Modifier.fillMaxSize())
+                        PreviewPane(spec, wallpaperUri, Modifier.fillMaxSize()) { spec = it }
                     }
                     Column(
                         Modifier.width(420.dp).fillMaxHeight().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -172,7 +172,7 @@ fun WidgetStudio(
             } else {
                 val previewHeight = min(maxHeight * 0.46f, 340.dp)
                 Column(Modifier.fillMaxSize()) {
-                    PreviewPane(spec, wallpaperUri, Modifier.fillMaxWidth().height(previewHeight).padding(12.dp))
+                    PreviewPane(spec, wallpaperUri, Modifier.fillMaxWidth().height(previewHeight).padding(12.dp)) { spec = it }
                     StudioDivider()
                     Column(
                         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp),
@@ -185,7 +185,7 @@ fun WidgetStudio(
 }
 
 @Composable
-private fun PreviewPane(spec: WidgetSpec, wallpaperUri: String?, modifier: Modifier) {
+private fun PreviewPane(spec: WidgetSpec, wallpaperUri: String?, modifier: Modifier, set: (WidgetSpec) -> Unit) {
     val c = Studio.colors
     var stage by rememberSaveable { mutableStateOf(Stage.WALLPAPER) }
     var cell by remember(spec.type, spec.aspect >= 1.6f) { mutableStateOf(defaultCell(spec)) }
@@ -211,8 +211,17 @@ private fun PreviewPane(spec: WidgetSpec, wallpaperUri: String?, modifier: Modif
             val scale = minOf(1f, (maxWidth - 24.dp) / w, (maxHeight - 24.dp) / h)
             Box(Modifier.size(w * scale, h * scale), contentAlignment = Alignment.Center) {
                 Box(Modifier.requiredSize(w, h).graphicsLayer { scaleX = scale; scaleY = scale }) {
-                    WidgetView(spec, Modifier.fillMaxSize())
+                    // The spinner can be turned here; it is placed the way it was left.
+                    WidgetView(spec, Modifier.fillMaxSize(), spinnable = true, onTurn = { set(spec.copy(turn = it)) })
                 }
+            }
+            if (spec.style == WidgetStyle.RADIAL_SPINNER) {
+                StudioText(
+                    "Drag to spin",
+                    StudioType.caption,
+                    if (stage == Stage.LIGHT) Color(0xFF16161A).copy(alpha = 0.6f) else Color.White.copy(alpha = 0.72f),
+                    Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp),
+                )
             }
         }
         // Side by side when there is room; stacked on narrow phones so neither control is cramped.
@@ -241,8 +250,17 @@ private fun Controls(spec: WidgetSpec, set: (WidgetSpec) -> Unit, message: Strin
     }
 
     StudioCard(title = "Layout") {
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            WidgetStyle.of(spec.type).forEach { style -> StyleTile(spec, style) { set(spec.copy(style = style)) } }
+        // An even grid that fills the card: as many columns as fit, never fewer than two.
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val columns = ((maxWidth + 8.dp) / (84.dp + 8.dp)).toInt().coerceIn(2, 5)
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                WidgetStyle.of(spec.type).chunked(columns).forEach { row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        row.forEach { style -> StyleTile(spec, style, Modifier.weight(1f)) { set(spec.copy(style = style)) } }
+                        repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
+                    }
+                }
+            }
         }
     }
 
@@ -372,7 +390,7 @@ private fun Controls(spec: WidgetSpec, set: (WidgetSpec) -> Unit, message: Strin
 
 /** A style choice drawn as the real widget, small, on a neutral panel. */
 @Composable
-private fun StyleTile(spec: WidgetSpec, style: WidgetStyle, onClick: () -> Unit) {
+private fun StyleTile(spec: WidgetSpec, style: WidgetStyle, modifier: Modifier, onClick: () -> Unit) {
     val c = Studio.colors
     val selected = spec.style == style
     val preview = remember(spec, style) {
@@ -382,27 +400,27 @@ private fun StyleTile(spec: WidgetSpec, style: WidgetStyle, onClick: () -> Unit)
         else spec.copy(style = style, background = WidgetBackground.NONE, border = false)
     }
     Column(
-        Modifier
+        modifier
             .testTag(TestTags.widgetStyle(style.name))
-            .width(104.dp)
             .clip(StudioCardCorner)
             .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
             .semantics { contentDescription = style.label },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Box(
+        BoxWithConstraints(
             Modifier
                 .fillMaxWidth()
                 .height(68.dp)
                 .clip(RoundedCornerShape(10.dp))
                 .background(Brush.verticalGradient(listOf(Color(0xFF2A2D36), Color(0xFF141519))))
-                .border(if (selected) 2.dp else 1.dp, if (selected) c.brand else c.line, RoundedCornerShape(10.dp))
+                .border(if (selected) 1.5.dp else 1.dp, if (selected) c.brand else c.line, RoundedCornerShape(10.dp))
                 .padding(6.dp),
             contentAlignment = Alignment.Center,
         ) {
             val (w, h) = if (preview.aspect >= 1.6f) 180.dp to 80.dp else 90.dp to 90.dp
-            val s = minOf(92.dp / w, 56.dp / h)
+            // Scaled to the tile's own width, so wide styles never spill out of narrow tiles.
+            val s = minOf((maxWidth - 4.dp) / w, 56.dp / h)
             Box(Modifier.size(w * s, h * s)) {
                 Box(Modifier.requiredSize(w, h).graphicsLayer { scaleX = s; scaleY = s }) {
                     WidgetView(preview.copy(textColor = legible(preview.textColor), accentColor = legible(preview.accentColor)), Modifier.fillMaxSize())

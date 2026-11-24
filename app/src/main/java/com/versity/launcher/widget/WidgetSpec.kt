@@ -10,7 +10,7 @@ enum class WidgetType(val title: String, val description: String, val collection
     ANALOGUE("Analogue clock", "Twelve dials, six hand styles"),
     DATE("Date and calendar", "Day card, date line or month"),
     COUNTDOWN("Countdown", "Live days, hours, minutes and seconds", collection = true),
-    LAUNCHER("App launcher", "Five apps on a radial shape", collection = true),
+    LAUNCHER("App launcher", "Five apps in a shape, or eight on a wheel", collection = true),
     SHORTCUT("App shortcut", "One app in layered rings", collection = true),
     BADGE("Badge", "A scalloped badge with your logo", collection = true),
 }
@@ -46,6 +46,7 @@ enum class WidgetStyle(val type: WidgetType, val label: String) {
     RADIAL_ORBIT(WidgetType.LAUNCHER, "Orbit"),
     RADIAL_CROSS(WidgetType.LAUNCHER, "Cross"),
     RADIAL_TILE(WidgetType.LAUNCHER, "Tile"),
+    RADIAL_SPINNER(WidgetType.LAUNCHER, "Spinner"),
     SHORTCUT_RINGS(WidgetType.SHORTCUT, "Rings"),
     SHORTCUT_HALO(WidgetType.SHORTCUT, "Halo"),
     BADGE_SCALLOP(WidgetType.BADGE, "Scalloped"),
@@ -134,6 +135,8 @@ data class WidgetSpec(
     val roundIcons: Boolean = false,
     /** Launcher: the centre app a little larger, with brighter rings. */
     val featured: Boolean = false,
+    /** Spinner: how many steps the wheel is turned, 0..7, so it stays where it was left. */
+    val turn: Int = 0,
 ) {
     val type: WidgetType get() = style.type
 
@@ -178,7 +181,7 @@ data class WidgetSpec(
         "title" to esc(title), "target" to target.toString(), "apps" to apps.joinToString(",") { esc(it) },
         "image" to esc(image.orEmpty()), "iconScale" to iconScale.toString(), "spacing" to spacing.toString(),
         "ringWidth" to ringWidth.toString(), "rings" to rings.toString(), "shadow" to shadow.toString(),
-        "roundIcons" to roundIcons.toString(), "featured" to featured.toString(),
+        "roundIcons" to roundIcons.toString(), "featured" to featured.toString(), "turn" to turn.toString(),
     ).joinToString("|") { (k, v) -> "$k=$v" }
 
     companion object {
@@ -259,6 +262,7 @@ data class WidgetSpec(
                 shadow = bool("shadow", d.shadow),
                 roundIcons = bool("roundIcons", d.roundIcons),
                 featured = bool("featured", d.featured),
+                turn = m["turn"]?.toIntOrNull()?.mod(8) ?: d.turn,
             )
         }
     }

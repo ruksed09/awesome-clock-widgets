@@ -42,6 +42,16 @@ abstract class VersityWidgetProvider(val type: WidgetType) : AppWidgetProvider()
             Intent.ACTION_TIME_CHANGED, Intent.ACTION_TIMEZONE_CHANGED, Intent.ACTION_LOCALE_CHANGED, Intent.ACTION_BOOT_COMPLETED,
             Widgets.ACTION_REFRESH ->
                 Widgets.updateAll(context, type)
+            Widgets.ACTION_TURN -> {
+                // The spinner's hub: turn the wheel one step clockwise and redraw it.
+                val id = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
+                if (id != AppWidgetManager.INVALID_APPWIDGET_ID) {
+                    val store = WidgetStore(context)
+                    val spec = store.system(id, type)
+                    store.saveSystem(id, spec.copy(turn = (spec.turn + 1).mod(CollectionArt.SPIN_SLOTS)))
+                    AppWidgetManager.getInstance(context)?.let { Widgets.update(context, it, id, type) }
+                }
+            }
             else -> super.onReceive(context, intent)
         }
     }
@@ -71,6 +81,7 @@ class WidgetPinnedReceiver : BroadcastReceiver() {
 /** Placed widgets, pinning and refreshes. */
 object Widgets {
     const val ACTION_REFRESH = "com.versity.launcher.widget.REFRESH"
+    const val ACTION_TURN = "com.versity.launcher.widget.TURN"
     const val EXTRA_DRAFT = "com.versity.launcher.widget.DRAFT"
 
     fun providerClass(type: WidgetType): Class<out VersityWidgetProvider> = when (type) {
@@ -100,7 +111,7 @@ object Widgets {
         val options = manager.getAppWidgetOptions(id)
         val w = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH)?.takeIf { it > 0 } ?: 180
         val h = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT)?.takeIf { it > 0 } ?: 180
-        val views = WidgetRenderer.build(context, spec, w, h)
+        val views = WidgetRenderer.build(context, spec, w, h, appWidgetId = id)
         // Collection widgets attach their own taps (apps); the clocks open the clock or calendar app.
         if (!type.collection) views.setOnClickPendingIntent(com.versity.launcher.R.id.w_root, clickIntent(context, type))
         manager.updateAppWidget(id, views)

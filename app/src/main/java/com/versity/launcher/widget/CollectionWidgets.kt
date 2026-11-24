@@ -1,6 +1,8 @@
 package com.versity.launcher.widget
 
 import android.app.PendingIntent
+import android.content.Intent
+import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.os.SystemClock
 import android.view.View
@@ -92,7 +94,10 @@ object Collection {
         else -> WidgetCorner.MEDIUM
     }
 
-    fun radial(context: Context, spec: WidgetSpec, widthDp: Int, heightDp: Int, interactive: Boolean): RemoteViews {
+    fun radial(
+        context: Context, spec: WidgetSpec, widthDp: Int, heightDp: Int, interactive: Boolean,
+        appWidgetId: Int = AppWidgetManager.INVALID_APPWIDGET_ID,
+    ): RemoteViews {
         val views = RemoteViews(context.packageName, R.layout.widget_radial)
         val density = context.resources.displayMetrics.density
         val w = (widthDp * density).roundToInt().coerceAtLeast(1)
@@ -101,13 +106,46 @@ object Collection {
         views.setImageViewBitmap(R.id.w_art, CollectionArt.radial(context, spec, side))
         // The image is centred square; pad the tap grid to that same square.
         views.setViewPadding(R.id.w_hit, (w - side) / 2, (h - side) / 2, (w - side) / 2, (h - side) / 2)
+        if (spec.style == WidgetStyle.RADIAL_SPINNER) {
+            spinner(context, views, spec, interactive, appWidgetId)
+            return views
+        }
         val cells = listOf(R.id.w_hit_0, R.id.w_hit_1, R.id.w_hit_2, R.id.w_hit_3, R.id.w_hit_4)
         cells.forEachIndexed { i, id ->
-            val app = spec.apps.getOrNull(i)
+            val app = spec.apps.getOrNull(i)?.takeIf { it.isNotBlank() }
             views.setContentDescription(id, app?.let { CollectionArt.label(context, it) } ?: "Empty slot")
             if (interactive && app != null) open(context, app, i)?.let { views.setOnClickPendingIntent(id, it) }
         }
         return views
+    }
+
+    /** Grid cells for the spinner's positions, clockwise from twelve. */
+    private val SpinCells = listOf(
+        R.id.w_hit_0, R.id.w_hit_6, R.id.w_hit_3, R.id.w_hit_7, R.id.w_hit_4, R.id.w_hit_8, R.id.w_hit_1, R.id.w_hit_5,
+    )
+
+    /**
+     * A home screen widget cannot follow a finger, so on other launchers the spinner turns one step each
+     * time its hub is tapped; each app stays tappable wherever the wheel has put it.
+     */
+    private fun spinner(context: Context, views: RemoteViews, spec: WidgetSpec, interactive: Boolean, appWidgetId: Int) {
+        for (position in 0 until CollectionArt.SPIN_SLOTS) {
+            val i = (position - spec.turn).mod(CollectionArt.SPIN_SLOTS)
+            val id = SpinCells[position]
+            val app = spec.apps.getOrNull(i)?.takeIf { it.isNotBlank() }
+            views.setContentDescription(id, app?.let { CollectionArt.label(context, it) } ?: "Empty slot")
+            if (interactive && app != null) open(context, app, i)?.let { views.setOnClickPendingIntent(id, it) }
+        }
+        views.setContentDescription(R.id.w_hit_2, "Turn the wheel")
+        if (interactive && appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+            val intent = Intent(context, RadialLauncherWidget::class.java)
+                .setAction(Widgets.ACTION_TURN)
+                .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+            views.setOnClickPendingIntent(
+                R.id.w_hit_2,
+                PendingIntent.getBroadcast(context, appWidgetId, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT),
+            )
+        }
     }
 
     fun art(context: Context, spec: WidgetSpec, widthDp: Int, heightDp: Int, interactive: Boolean): RemoteViews {

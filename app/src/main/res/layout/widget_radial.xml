@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Radial launcher. The shape and icons are one image from CollectionArt; the 3 x 3 grid over it holds
-  the five tap targets (top, left, centre, right, bottom). WidgetRenderer pads the grid to the square
-  the image occupies, so targets line up with the circles on any cell shape.
+  the tap targets: 0 top, 1 left, 2 centre, 3 right, 4 bottom, then the corners 5 top-left,
+  6 top-right, 7 bottom-right, 8 bottom-left (the spinner's diagonal apps). WidgetRenderer pads the
+  grid to the square the image occupies, so targets line up with the circles on any cell shape.
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/w_root"
@@ -28,20 +29,20 @@
             android:layout_weight="1"
             android:orientation="horizontal">
             <FrameLayout
+                android:id="@+id/w_hit_5"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:importantForAccessibility="no" />
+                android:layout_weight="1" />
             <FrameLayout
                 android:id="@+id/w_hit_0"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1" />
             <FrameLayout
+                android:id="@+id/w_hit_6"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:importantForAccessibility="no" />
+                android:layout_weight="1" />
         </LinearLayout>
         <LinearLayout
             android:layout_width="match_parent"
@@ -70,20 +71,20 @@
             android:layout_weight="1"
             android:orientation="horizontal">
             <FrameLayout
+                android:id="@+id/w_hit_8"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:importantForAccessibility="no" />
+                android:layout_weight="1" />
             <FrameLayout
                 android:id="@+id/w_hit_4"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1" />
             <FrameLayout
+                android:id="@+id/w_hit_7"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:importantForAccessibility="no" />
+                android:layout_weight="1" />
         </LinearLayout>
     </LinearLayout>
 </FrameLayout>

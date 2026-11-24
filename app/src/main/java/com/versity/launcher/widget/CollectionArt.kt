@@ -16,11 +16,15 @@ import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.drawable.Drawable
 import android.net.Uri
+import android.util.DisplayMetrics
+import androidx.core.content.res.ResourcesCompat
+import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
+import kotlin.math.sqrt
 
 /**
  * Draws the collection's image widgets: the radial launcher, the app shortcut and the badge. Widgets can
@@ -31,6 +35,9 @@ object CollectionArt {
     /** Launcher slots in order: top, left, centre, right, bottom. */
     val Slots = listOf(0.5f to 1 / 6f, 1 / 6f to 0.5f, 0.5f to 0.5f, 5 / 6f to 0.5f, 0.5f to 5 / 6f)
     const val SLOT_COUNT = 5
+
+    /** How many apps a launcher style holds: five in the shapes, eight on the spinner. */
+    fun slotCount(spec: WidgetSpec) = if (spec.style == WidgetStyle.RADIAL_SPINNER) SPIN_SLOTS else SLOT_COUNT
 
     fun component(key: String): ComponentName? {
         val name = key.substringBefore('#')
@@ -55,11 +62,22 @@ object CollectionArt {
     @androidx.annotation.VisibleForTesting
     internal var iconSource: (Context, String) -> Drawable? = ::systemIcon
 
-    private fun icon(context: Context, key: String): Drawable? = iconSource(context, key)
+    fun icon(context: Context, key: String): Drawable? = iconSource(context, key)
 
+    /**
+     * The app's icon at the highest density it ships, so it stays sharp when drawn large; the plain
+     * lookups are the fallback.
+     */
     private fun systemIcon(context: Context, key: String): Drawable? = component(key)?.let { c ->
-        runCatching { context.packageManager.getActivityIcon(c) }.getOrNull()
-            ?: runCatching { context.packageManager.getApplicationIcon(c.packageName) }.getOrNull()
+        val pm = context.packageManager
+        runCatching {
+            val info = pm.getActivityInfo(c, 0)
+            val id = info.iconResource
+            if (id == 0) null
+            else ResourcesCompat.getDrawableForDensity(pm.getResourcesForApplication(info.applicationInfo), id, DisplayMetrics.DENSITY_XXXHIGH, null)
+        }.getOrNull()
+            ?: runCatching { pm.getActivityIcon(c) }.getOrNull()
+            ?: runCatching { pm.getApplicationIcon(c.packageName) }.getOrNull()
     }
 
     private fun shadowed(paint: Paint, on: Boolean, r: Float) {
@@ -68,42 +86,49 @@ object CollectionArt {
 
     // ------------------------------------------------------------ Radial launcher
 
+    /**
+     * Room kept clear around the art, as a share of its side, so soft shadows and hairline edges are
+     * never cut off where the image ends.
+     */
+    private const val MARGIN = 0.035f
+
     fun radial(context: Context, spec: WidgetSpec, sizePx: Int): Bitmap {
-        val size = sizePx.coerceIn(150, 720)
+        val size = sizePx.coerceIn(150, 1080)
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
-        val cell = size / 3f
+        if (spec.style == WidgetStyle.RADIAL_SPINNER) {
+            drawSpinner(canvas, spec, size.toFloat(), spec.turn * SPIN_STEP) { icon(context, it) }
+            return bitmap
+        }
+        val m = size * MARGIN
+        val inner = size - 2 * m
+        val cell = inner / 3f
         val c = size / 2f
         // Circles shrink as spacing grows, leaving the shape visible between them. The orbit's circles
         // sit inside a round plate, so they are a little smaller there.
         val shrink = if (spec.style == WidgetStyle.RADIAL_ORBIT) 0.84f else 1f
         val r = cell / 2f * (0.98f - spec.spacing / 100f) * shrink
-        val centres = Slots.map { (x, y) -> x * size to y * size }
+        val centres = Slots.map { (x, y) -> m + x * inner to m + y * inner }
         val fill = backdrop(spec, size)
         if (fill != null) {
-            when (spec.style) {
-                WidgetStyle.RADIAL_FLOWER -> canvas.drawBitmap(flowerMask(size, centres, r), 0f, 0f, fill)
-                WidgetStyle.RADIAL_ORBIT -> edged(canvas, spec, fill, Path().apply { addCircle(c, c, c * 0.97f, Path.Direction.CW) }, size)
-                WidgetStyle.RADIAL_CROSS -> edged(canvas, spec, fill, crossPath(size, centres, r), size)
-                WidgetStyle.RADIAL_TILE -> edged(canvas, spec, fill, Path().apply {
-                    val inset = size * 0.02f
-                    addRoundRect(RectF(inset, inset, size - inset, size - inset), size * 0.2f, size * 0.2f, Path.Direction.CW)
-                }, size)
-                else -> Unit // Rings: each circle gets its own disc below.
+            val shape = when (spec.style) {
+                WidgetStyle.RADIAL_FLOWER -> flowerPath(c, cell, r)
+                WidgetStyle.RADIAL_ORBIT -> Path().apply { addCircle(c, c, inner / 2f, Path.Direction.CW) }
+                WidgetStyle.RADIAL_CROSS -> crossPath(c, cell, r * 1.06f)
+                WidgetStyle.RADIAL_TILE -> squircle(c, inner / 2f)
+                else -> null // Rings: each circle gets its own disc below.
             }
+            shape?.let { edged(canvas, spec, fill, it, size) }
         }
         if (spec.style == WidgetStyle.RADIAL_ORBIT) orbit(canvas, spec, c, cell, r)
         // The centre is drawn last so a featured centre sits above its neighbours.
-        val order = listOf(0, 1, 3, 4, 2)
-        order.forEach { i ->
+        listOf(0, 1, 3, 4, 2).forEach { i ->
             val (cx, cy) = centres[i]
             val featured = spec.featured && i == 2
             // A featured centre grows only as far as the space to its neighbours allows.
             val rr = if (featured) r * min(1.12f, (cell - r) / r * 0.98f).coerceAtLeast(1f) else r
-            lobe(
-                context, canvas, cx, cy, rr, spec, spec.apps.getOrNull(i),
-                disc = if (spec.style == WidgetStyle.RADIAL_RINGS) fill else null, bright = featured,
-            )
+            val disc = if (spec.style == WidgetStyle.RADIAL_RINGS) fill else null
+            lobe(canvas, cx, cy, rr, spec, spec.apps.getOrNull(i)?.let { icon(context, it) }, disc, if (featured) 1f else 0f)
         }
         return bitmap
     }
@@ -126,31 +151,101 @@ object CollectionArt {
         }
     }
 
-    /** Fills [path] and, for glass, traces it with a hairline so the pale film has an edge. */
+    /**
+     * Fills [path] and traces it with a hairline: bright on glass so the film has an edge, faint on a
+     * solid shape so it stays crisp against dark wallpapers.
+     */
     private fun edged(canvas: Canvas, spec: WidgetSpec, fill: Paint, path: Path, size: Int) {
         canvas.drawPath(path, fill)
-        if (spec.background == WidgetBackground.GLASS) {
-            canvas.drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                style = Paint.Style.STROKE
-                strokeWidth = max(1f, size * 0.004f)
-                color = withAlpha(Color.WHITE, 0x55)
-            })
+        val edge = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = max(1f, size * 0.0032f)
+            color = if (spec.background == WidgetBackground.GLASS) withAlpha(Color.WHITE, 0x55)
+            else withAlpha(lighten(spec.backgroundColor.toInt(), 0.22f), 0x40 * spec.opacity / 100)
         }
+        canvas.drawPath(path, edge)
     }
 
-    /** Two capsules crossing at the centre, joined into one outline so a translucent fill never doubles. */
-    private fun crossPath(size: Int, centres: List<Pair<Float, Float>>, r: Float): Path {
-        val half = r * 1.06f
-        val c = size / 2f
-        val vertical = Path().apply {
-            addRoundRect(RectF(c - half, centres[0].second - half, c + half, centres[4].second + half), half, half, Path.Direction.CW)
+    /**
+     * The flower: the four outer circles joined by concave arcs, each arc a circle touching both of its
+     * neighbours, so the outline is one smooth curve with no corners. It is grown until the notches
+     * clear the centre circle, which therefore always sits inside. [d] is the distance from the centre
+     * to an outer circle and [rs] the circles' radius.
+     */
+    internal fun flowerPath(c: Float, d: Float, rs: Float): Path {
+        // Fillet radius: at least wide enough to reach both neighbours, then grown for a gentle notch.
+        var f = max(rs * 0.5f, d / SQRT2 - rs + rs * 0.05f)
+        fun reach(f: Float) = (d + sqrt(max(0f, 2 * (rs + f) * (rs + f) - d * d))) / 2f
+        var guard = 0
+        while (reach(f) * SQRT2 - f < rs * 1.12f && guard++ < 200) f *= 1.03f
+        val t = reach(f)
+        // Outer circles clockwise from the top, and the fillet between each and the next.
+        val dirs = listOf(0f to -1f, 1f to 0f, 0f to 1f, -1f to 0f)
+        val lobes = dirs.map { (x, y) -> c + x * d to c + y * d }
+        val fillets = dirs.indices.map { k ->
+            val (ax, ay) = dirs[k]
+            val (bx, by) = dirs[(k + 1) % 4]
+            c + (ax + bx) * t to c + (ay + by) * t
         }
-        val horizontal = Path().apply {
-            addRoundRect(RectF(centres[1].first - half, c - half, centres[3].first + half, c + half), half, half, Path.Direction.CW)
+        val path = Path()
+        for (k in 0 until 4) {
+            val (ax, ay) = lobes[k]
+            val (px, py) = fillets[(k + 3) % 4]
+            val (nx, ny) = fillets[k]
+            val start = angle(px - ax, py - ay)
+            path.arcTo(RectF(ax - rs, ay - rs, ax + rs, ay + rs), start, positive(angle(nx - ax, ny - ay) - start), k == 0)
+            val (bx, by) = lobes[(k + 1) % 4]
+            val fs = angle(ax - nx, ay - ny)
+            path.arcTo(RectF(nx - f, ny - f, nx + f, ny + f), fs, positive(angle(bx - nx, by - ny) - fs) - 360f, false)
         }
-        vertical.op(horizontal, Path.Op.UNION)
-        return vertical
+        path.close()
+        return path
     }
+
+    /**
+     * A plus of four arms with round ends, [h] wide on each side, and the inside corners rounded too,
+     * traced as one outline so it has no seams.
+     */
+    internal fun crossPath(c: Float, d: Float, h: Float): Path {
+        val q = h * 0.55f
+        val dirs = listOf(0f to -1f, 1f to 0f, 0f to 1f, -1f to 0f)
+        val path = Path()
+        for (k in 0 until 4) {
+            val (ux, uy) = dirs[k]
+            val (vx, vy) = dirs[(k + 1) % 4] // clockwise neighbour, also this arm's right-hand side
+            val ex = c + ux * d
+            val ey = c + uy * d
+            if (k == 0) path.moveTo(c - vx * h + ux * (h + q), c - vy * h + uy * (h + q))
+            path.lineTo(ex - vx * h, ey - vy * h)
+            path.arcTo(RectF(ex - h, ey - h, ex + h, ey + h), angle(-vx, -vy), 180f, false)
+            path.lineTo(c + vx * h + ux * (h + q), c + vy * h + uy * (h + q))
+            val qx = c + (vx + ux) * (h + q)
+            val qy = c + (vy + uy) * (h + q)
+            path.arcTo(RectF(qx - q, qy - q, qx + q, qy + q), angle(-vx, -vy), -90f, false)
+        }
+        path.close()
+        return path
+    }
+
+    /** A squircle (superellipse) centred on [c]: corners that ease in rather than switching to an arc. */
+    internal fun squircle(c: Float, half: Float, n: Double = 5.0): Path {
+        val path = Path()
+        val steps = 720
+        for (i in 0..steps) {
+            val a = 2 * Math.PI * i / steps
+            val ca = cos(a)
+            val sa = sin(a)
+            val x = c + half * (Math.signum(ca) * Math.pow(kotlin.math.abs(ca), 2 / n)).toFloat()
+            val y = c + half * (Math.signum(sa) * Math.pow(kotlin.math.abs(sa), 2 / n)).toFloat()
+            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        }
+        path.close()
+        return path
+    }
+
+    private const val SQRT2 = 1.4142135f
+    private fun angle(x: Float, y: Float) = Math.toDegrees(atan2(y.toDouble(), x.toDouble())).toFloat()
+    private fun positive(deg: Float): Float { var a = deg % 360f; if (a <= 0f) a += 360f; return a }
 
     /** The orbit: a fine circle through the outer apps, with a small bead between each pair. */
     private fun orbit(canvas: Canvas, spec: WidgetSpec, c: Float, radius: Float, r: Float) {
@@ -169,66 +264,138 @@ object CollectionArt {
         }
     }
 
-    /**
-     * The unified, organic outline: five circles and the cross between them, blurred and cut back so the
-     * joins curve like one shape rather than meeting at corners.
-     */
-    private fun flowerMask(size: Int, centres: List<Pair<Float, Float>>, r: Float): Bitmap {
-        val small = (size / 2).coerceAtLeast(60)
-        val k = small / size.toFloat()
-        val mask = Bitmap.createBitmap(small, small, Bitmap.Config.ARGB_8888)
-        val c = Canvas(mask)
-        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
-        centres.forEach { (x, y) -> c.drawCircle(x * k, y * k, r * k * 1.02f, p) }
-        val bar = r * k * 1.15f
-        c.drawRect(size * k / 2 - bar, centres[0].second * k, size * k / 2 + bar, centres[4].second * k, p)
-        c.drawRect(centres[1].first * k, size * k / 2 - bar, centres[3].first * k, size * k / 2 + bar, p)
-        val px = IntArray(small * small)
-        mask.getPixels(px, 0, small, 0, 0, small, small)
-        val alpha = IntArray(px.size) { (px[it] ushr 24) and 0xFF }
-        val radius = (r * k * 0.28f).roundToInt().coerceAtLeast(2)
-        repeat(3) { boxBlur(alpha, small, radius) }
-        for (i in px.indices) {
-            // Cut back at half strength with a soft edge: concave corners become smooth curves.
-            val a = ((alpha[i] - 128) * 6 + 128).coerceIn(0, 255)
-            px[i] = (a shl 24) or 0xFFFFFF
-        }
-        mask.setPixels(px, 0, small, 0, 0, small, small)
-        // An alpha-only mask, so drawing it takes the paint's colour, opacity and shadow.
-        return Bitmap.createScaledBitmap(mask, size, size, true).extractAlpha()
+    // ------------------------------------------------------------ Spinner
+
+    const val SPIN_SLOTS = 8
+    const val SPIN_STEP = 360f / SPIN_SLOTS
+
+    /** The spinner's measurements for a [size] square: plate, the circle the apps ride on, app and hub radii. */
+    class SpinnerGeometry(size: Float, spacing: Int) {
+        val c = size / 2f
+        val plate = size * (0.5f - MARGIN)
+        val track = plate * 0.66f
+        val lobe = plate * (0.235f - spacing * 0.0022f)
+        val hub = plate * 0.29f
     }
 
-    private fun boxBlur(a: IntArray, n: Int, r: Int) {
-        val tmp = IntArray(a.size)
-        val w = 2 * r + 1
-        for (y in 0 until n) {
-            var sum = 0
-            for (x in -r..r) sum += a[y * n + x.coerceIn(0, n - 1)]
-            for (x in 0 until n) {
-                tmp[y * n + x] = sum / w
-                sum += a[y * n + (x + r + 1).coerceAtMost(n - 1)] - a[y * n + (x - r).coerceAtLeast(0)]
-            }
+    /** Where app [i] sits on a wheel turned [angle] degrees clockwise, as degrees clockwise from twelve. */
+    fun spinAngle(i: Int, angle: Float) = i * SPIN_STEP + angle
+
+    /** 1 for the app under the pointer at twelve, easing to 0 one step away. */
+    fun focusOf(deg: Float): Float {
+        var d = deg % 360f
+        if (d > 180f) d -= 360f
+        if (d < -180f) d += 360f
+        val t = (1f - kotlin.math.abs(d) / SPIN_STEP).coerceIn(0f, 1f)
+        return t * t * (3 - 2 * t)
+    }
+
+    /**
+     * Draws the spinner turned [angle] degrees: a round plate with a ticked rim that turns with the
+     * wheel, eight apps on a fine track (the one under the pointer at twelve larger and brighter), and a
+     * hub with grip lines and a turn mark. The same drawing serves the widget image and the live,
+     * finger-driven wheel on Versity's home screen.
+     */
+    fun drawSpinner(canvas: Canvas, spec: WidgetSpec, size: Float, angle: Float, icon: (String) -> Drawable?) {
+        val g = SpinnerGeometry(size, spec.spacing)
+        val ring = spec.textColor.toInt()
+        val sizeInt = size.toInt().coerceAtLeast(1)
+        backdrop(spec, sizeInt)?.let { edged(canvas, spec, it, Path().apply { addCircle(g.c, g.c, g.plate, Path.Direction.CW) }, sizeInt) }
+        val p = Paint(Paint.ANTI_ALIAS_FLAG)
+        // The rim: fine ticks that turn with the wheel, a longer one between each pair of apps. Without a
+        // plate the apps float on the wallpaper, and a loose ring of ticks would only add noise.
+        p.style = Paint.Style.STROKE
+        p.strokeCap = Paint.Cap.ROUND
+        val ticks = if (spec.background == WidgetBackground.NONE) 0 else SPIN_SLOTS * 6
+        for (k in 0 until ticks) {
+            val major = k % 6 == 3
+            val a = Math.toRadians((k * 360.0 / ticks) + angle)
+            val r1 = g.plate * (if (major) 0.885f else 0.915f)
+            val r2 = g.plate * 0.95f
+            p.strokeWidth = max(1f, g.plate * (if (major) 0.014f else 0.008f))
+            p.color = withAlpha(lighten(ring, 0.2f), if (major) 0xC0 else 0x70)
+            val sx = sin(a).toFloat()
+            val cy = -cos(a).toFloat()
+            canvas.drawLine(g.c + sx * r1, g.c + cy * r1, g.c + sx * r2, g.c + cy * r2, p)
         }
-        for (x in 0 until n) {
-            var sum = 0
-            for (y in -r..r) sum += tmp[y.coerceIn(0, n - 1) * n + x]
-            for (y in 0 until n) {
-                a[y * n + x] = sum / w
-                sum += tmp[(y + r + 1).coerceAtMost(n - 1) * n + x] - tmp[(y - r).coerceAtLeast(0) * n + x]
-            }
+        // The track the apps ride on.
+        p.strokeWidth = max(1f, g.plate * 0.008f)
+        p.color = withAlpha(lighten(ring, 0.1f), 0x80)
+        canvas.drawCircle(g.c, g.c, g.track, p)
+        // Apps, the focused one last so it sits on top.
+        (0 until SPIN_SLOTS).map { i -> i to focusOf(spinAngle(i, angle)) }.sortedBy { it.second }.forEach { (i, focus) ->
+            val a = Math.toRadians(spinAngle(i, angle).toDouble())
+            val x = g.c + g.track * sin(a).toFloat()
+            val y = g.c - g.track * cos(a).toFloat()
+            lobe(canvas, x, y, g.lobe * (1f + 0.16f * focus), spec, spec.apps.getOrNull(i)?.takeIf { it.isNotBlank() }?.let(icon), null, focus)
         }
+        // The pointer at twelve, outside the turning parts.
+        p.style = Paint.Style.FILL
+        p.color = lighten(ring, 0.6f)
+        val tip = g.c - g.plate * 0.905f
+        val base = g.c - g.plate * 0.99f
+        val w = g.plate * 0.055f
+        canvas.drawPath(Path().apply {
+            moveTo(g.c, tip)
+            quadTo(g.c - w * 0.25f, tip - (tip - base) * 0.35f, g.c - w, base)
+            lineTo(g.c + w, base)
+            quadTo(g.c + w * 0.25f, tip - (tip - base) * 0.35f, g.c, tip)
+            close()
+        }, p)
+        hub(canvas, spec, g, angle)
+    }
+
+    /** The hub: a ringed knob with grip lines that turn with the wheel and a fixed turn mark. */
+    private fun hub(canvas: Canvas, spec: WidgetSpec, g: SpinnerGeometry, angle: Float) {
+        val ring = spec.textColor.toInt()
+        val well = spec.accentColor.toInt()
+        val r = g.hub
+        val p = Paint(Paint.ANTI_ALIAS_FLAG)
+        p.shader = LinearGradient(g.c, g.c - r, g.c, g.c + r, lighten(ring, 0.12f), darken(ring, 0.3f), Shader.TileMode.CLAMP)
+        canvas.drawCircle(g.c, g.c, r, p)
+        val inner = r * 0.84f
+        p.shader = LinearGradient(g.c, g.c - inner, g.c, g.c + inner, darken(well, 0.3f), lighten(well, 0.05f), Shader.TileMode.CLAMP)
+        canvas.drawCircle(g.c, g.c, inner, p)
+        p.shader = null
+        p.style = Paint.Style.STROKE
+        p.strokeCap = Paint.Cap.ROUND
+        p.strokeWidth = max(1f, r * 0.05f)
+        p.color = withAlpha(lighten(ring, 0.15f), 0x90)
+        for (k in 0 until 12) {
+            val a = Math.toRadians(k * 30.0 + angle)
+            val sx = sin(a).toFloat()
+            val cy = -cos(a).toFloat()
+            canvas.drawLine(g.c + sx * inner * 0.68f, g.c + cy * inner * 0.68f, g.c + sx * inner * 0.86f, g.c + cy * inner * 0.86f, p)
+        }
+        // A circular arrow: tap or drag to turn.
+        val ar = inner * 0.34f
+        p.strokeWidth = max(1f, r * 0.085f)
+        p.color = lighten(ring, 0.55f)
+        canvas.drawArc(RectF(g.c - ar, g.c - ar, g.c + ar, g.c + ar), -60f, 290f, false, p)
+        p.style = Paint.Style.FILL
+        val ha = Math.toRadians(-60.0)
+        val hx = g.c + ar * cos(ha).toFloat()
+        val hy = g.c + ar * sin(ha).toFloat()
+        val s = ar * 0.55f
+        canvas.drawPath(Path().apply {
+            // Arrowhead pointing along the arc's clockwise end.
+            moveTo(hx + s * 0.9f, hy + s * 0.15f)
+            lineTo(hx - s * 0.35f, hy - s * 0.75f)
+            lineTo(hx - s * 0.2f, hy + s * 0.75f)
+            close()
+        }, p)
     }
 
     /**
      * One circle: an optional disc (for separate rings), concentric rings lit softly from above, a
-     * recessed well and the app icon, or a quiet "+" when the slot is empty. [bright] lifts the rings
-     * for a featured app.
+     * recessed well and the app icon, or a quiet "+" when the slot is empty. [bright] (0..1) lifts the
+     * rings for a featured or focused app.
      */
-    private fun lobe(context: Context, canvas: Canvas, cx: Float, cy: Float, r: Float, spec: WidgetSpec, app: String?, disc: Paint?, bright: Boolean = false) {
+    private fun lobe(canvas: Canvas, cx: Float, cy: Float, r: Float, spec: WidgetSpec, drawable: Drawable?, disc: Paint?, bright: Float = 0f) {
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
         if (disc != null) canvas.drawCircle(cx, cy, r, disc)
         val w = r * spec.ringWidth * 0.045f
-        val ring = spec.textColor.toInt().let { if (bright) lighten(it, 0.22f) else it }
+        val ring = lighten(spec.textColor.toInt(), 0.22f * bright)
         var outer = r * 0.86f
         repeat(spec.rings.coerceIn(0, 3)) { i ->
             paint.style = Paint.Style.STROKE
@@ -244,14 +411,13 @@ object CollectionArt {
         paint.shader = LinearGradient(cx, cy - outer, cx, cy + outer, darken(well, 0.3f), lighten(well, 0.05f), Shader.TileMode.CLAMP)
         canvas.drawCircle(cx, cy, outer, paint)
         paint.shader = null
-        val iconSize = r * 2 * spec.iconScale / 100f
-        val drawable = app?.let { icon(context, it) }
+        val iconSize = min(r * 2 * spec.iconScale / 100f, outer * 2f)
         if (drawable != null) {
-            val half = (iconSize / 2).roundToInt()
+            val half = iconSize / 2f
             drawable.setBounds((cx - half).roundToInt(), (cy - half).roundToInt(), (cx + half).roundToInt(), (cy + half).roundToInt())
             if (spec.roundIcons) {
                 canvas.save()
-                canvas.clipPath(Path().apply { addCircle(cx, cy, iconSize / 2, Path.Direction.CW) })
+                canvas.clipPath(Path().apply { addCircle(cx, cy, half, Path.Direction.CW) })
                 drawable.draw(canvas)
                 canvas.restore()
             } else {
@@ -259,7 +425,7 @@ object CollectionArt {
             }
         } else {
             paint.style = Paint.Style.STROKE
-            paint.strokeWidth = r * 0.035f
+            paint.strokeWidth = max(1f, r * 0.035f)
             paint.strokeCap = Paint.Cap.ROUND
             paint.color = lighten(spec.textColor.toInt(), 0.2f)
             val a = iconSize * 0.22f
@@ -283,7 +449,7 @@ object CollectionArt {
             }
             canvas.drawCircle(size / 2f, size / 2f, r * 1.08f, glow)
         }
-        lobe(context, canvas, size / 2f, size / 2f, r, spec, spec.apps.firstOrNull(), disc = backdrop(spec, size))
+        lobe(canvas, size / 2f, size / 2f, r, spec, spec.apps.firstOrNull()?.let { icon(context, it) }, backdrop(spec, size))
         return bitmap
     }
 

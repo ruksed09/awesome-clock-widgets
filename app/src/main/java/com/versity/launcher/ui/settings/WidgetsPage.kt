@@ -148,13 +148,15 @@ private fun TypeCard(type: WidgetType, modifier: Modifier, onClick: () -> Unit) 
             Box(Modifier.size((w * s).dp, (h * s).dp)) {
                 Box(Modifier.requiredSize(w.dp, h.dp).graphicsLayer { scaleX = s; scaleY = s }) { WidgetView(spec, Modifier.fillMaxSize()) }
             }
+            // "Add" sits on the preview, so the name below has the card's full width.
+            Box(
+                Modifier.align(Alignment.TopEnd).padding(6.dp).size(26.dp).background(c.surface.copy(alpha = 0.92f), RoundedCornerShape(13.dp)),
+                contentAlignment = Alignment.Center,
+            ) { StudioGlyph(Glyph.PLUS, 14.dp, c.brandText) }
         }
-        Row(Modifier.fillMaxWidth().padding(start = 14.dp, end = 10.dp, top = 8.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                StudioText(type.title, StudioType.cardTitle, maxLines = 1)
-                StudioText(type.description, StudioType.small, c.muted, maxLines = 2, minLines = 2)
-            }
-            StudioGlyph(Glyph.PLUS, 16.dp, c.brandText)
+        Column(Modifier.fillMaxWidth().padding(start = 14.dp, end = 12.dp, top = 8.dp, bottom = 12.dp)) {
+            StudioText(type.title, StudioType.cardTitle, maxLines = 1)
+            StudioText(type.description, StudioType.small, c.muted, maxLines = 2, minLines = 2)
         }
     }
 }

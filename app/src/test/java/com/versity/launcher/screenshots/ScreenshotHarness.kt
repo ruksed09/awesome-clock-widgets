@@ -9,7 +9,9 @@ import android.graphics.Canvas
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import com.versity.launcher.data.AppEntry
 import com.versity.launcher.data.DrawerStyle
 import com.versity.launcher.data.LauncherSettings
@@ -133,6 +135,25 @@ class ScreenshotHarness {
                 rule.waitForIdle()
                 save("studio_${type.name.lowercase()}_${mode.name.lowercase()}")
             }
+        }
+    }
+
+    /** The launcher studio on the spinner, at the top and scrolled to its last options. */
+    @Test fun spinnerStudio() {
+        for (mode in listOf(UiMode.LIGHT, UiMode.DARK)) {
+            val s = LauncherSettings.DEFAULT.copy(uiMode = mode)
+            rule.activityRule.scenario.recreate()
+            rule.setContent { CustomiseContent(s, object : CustomiseActions {}, initialPage = CustomisePage.WIDGETS) }
+            rule.onNodeWithTag(TestTags.widgetType(WidgetType.LAUNCHER.name)).performClick()
+            rule.mainClock.advanceTimeBy(600)
+            rule.onNodeWithText("Spinner").performScrollTo().performClick()
+            rule.mainClock.advanceTimeBy(600)
+            rule.waitForIdle()
+            save("studio_spinner_${mode.name.lowercase()}")
+            rule.onNodeWithText("Soft shadow").performScrollTo()
+            rule.mainClock.advanceTimeBy(400)
+            rule.waitForIdle()
+            save("studio_spinner_options_${mode.name.lowercase()}")
         }
     }
 

@@ -72,6 +72,7 @@ import com.versity.launcher.widget.Collection
 import com.versity.launcher.widget.CollectionArt
 import com.versity.launcher.widget.WidgetBackground
 import com.versity.launcher.widget.WidgetSpec
+import com.versity.launcher.widget.WidgetStyle
 import com.versity.launcher.widget.WidgetType
 import java.time.Instant
 import java.time.LocalDateTime
@@ -104,15 +105,20 @@ internal fun CollectionControls(spec: WidgetSpec, set: (WidgetSpec) -> Unit) {
     }
     // A new launcher, shortcut or badge starts with real apps rather than empty circles.
     val slots = when (spec.type) {
-        WidgetType.LAUNCHER -> CollectionArt.SLOT_COUNT
+        WidgetType.LAUNCHER -> CollectionArt.slotCount(spec)
         WidgetType.SHORTCUT, WidgetType.BADGE -> 1
         else -> 0
     }
-    LaunchedEffect(apps.isNotEmpty()) {
-        if (apps.isEmpty() || spec.apps.isNotEmpty() || slots == 0 || spec.type == WidgetType.BADGE) return@LaunchedEffect
+    // Switching to the spinner tops its extra places up the same way, keeping the apps already chosen.
+    LaunchedEffect(apps.isNotEmpty(), slots) {
+        if (apps.isEmpty() || slots == 0 || spec.type == WidgetType.BADGE) return@LaunchedEffect
+        val chosen = spec.apps.take(slots)
+        if (chosen.size >= slots && chosen.all { it.isNotBlank() }) return@LaunchedEffect
+        if (spec.apps.isNotEmpty() && spec.type != WidgetType.LAUNCHER) return@LaunchedEffect
         val byPackage = apps.groupBy { it.packageName }
-        val picks = (Suggested.mapNotNull { byPackage[it]?.first() } + apps).distinctBy { it.key }.take(slots)
-        set(spec.copy(apps = picks.map { it.key }))
+        val spare = (Suggested.mapNotNull { byPackage[it]?.first() } + apps).map { it.key }.distinct().filter { it !in chosen }.iterator()
+        val filled = List(slots) { i -> chosen.getOrNull(i)?.takeIf { it.isNotBlank() } ?: if (spare.hasNext()) spare.next() else "" }
+        if (filled != spec.apps) set(spec.copy(apps = filled + spec.apps.drop(slots)))
     }
 
     when (spec.type) {
@@ -161,13 +167,19 @@ private fun AppsCard(spec: WidgetSpec, set: (WidgetSpec) -> Unit, apps: List<App
             repeat(slots) { i ->
                 if (i > 0) StudioDivider()
                 val app = spec.apps.getOrNull(i)?.let { byKey[it] }
-                AppRow(if (slots > 1) SlotNames[i] else "Opens", app, Modifier.testTag(TestTags.widgetSlot(i))) { picking = i }
+                val name = when {
+                    slots == 1 -> "Opens"
+                    slots == CollectionArt.SPIN_SLOTS -> "App ${i + 1}"
+                    else -> SlotNames[i]
+                }
+                AppRow(name, app, Modifier.testTag(TestTags.widgetSlot(i))) { picking = i }
             }
         }
     }
     picking?.let { slot ->
         AppPicker(apps, onDismiss = { picking = null }) { picked ->
-            val list = MutableList(slots) { spec.apps.getOrNull(it).orEmpty() }
+            // Apps beyond this style's places are kept, so switching back and forth loses nothing.
+            val list = MutableList(maxOf(slots, spec.apps.size)) { spec.apps.getOrNull(it).orEmpty() }
             list[slot] = picked.key
             set(spec.copy(apps = list))
             picking = null
@@ -296,13 +308,20 @@ private fun ProportionsCard(spec: WidgetSpec, set: (WidgetSpec) -> Unit) {
         LabelledSlider(if (spec.type == WidgetType.BADGE) "Logo" else "Icons", spec.iconScale, 40..100, "%") { set(spec.copy(iconScale = it)) }
         if (spec.type == WidgetType.LAUNCHER) LabelledSlider("Spacing", spec.spacing, 0..30, "") { set(spec.copy(spacing = it)) }
         val badge = spec.type == WidgetType.BADGE
-        StudioLabel("Ring count")
         // The badge always keeps its ring band; the apps can go without rings.
         val counts = if (badge) listOf(1, 2, 3) else listOf(0, 1, 2, 3)
-        StudioSegmented(counts, spec.rings.coerceIn(counts.first(), 3), { if (it == 0) "None" else "$it" }, { set(spec.copy(rings = it)) }, tag = { "rings_$it" })
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            StudioText("Rings", StudioType.body, modifier = Modifier.width(76.dp))
+            StudioSegmented(
+                counts, spec.rings.coerceIn(counts.first(), 3), { if (it == 0) "None" else "$it" }, { set(spec.copy(rings = it)) },
+                Modifier.weight(1f), tag = { "rings_$it" },
+            )
+        }
         if (badge || spec.rings > 0) LabelledSlider("Ring width", spec.ringWidth, 1..10, "") { set(spec.copy(ringWidth = it)) }
         if (!badge) ToggleLine("Round icons", spec.roundIcons) { set(spec.copy(roundIcons = it)) }
-        if (spec.type == WidgetType.LAUNCHER) ToggleLine("Larger centre app", spec.featured) { set(spec.copy(featured = it)) }
+        if (spec.type == WidgetType.LAUNCHER && spec.style != WidgetStyle.RADIAL_SPINNER) {
+            ToggleLine("Larger centre app", spec.featured) { set(spec.copy(featured = it)) }
+        }
         ToggleLine("Soft shadow", spec.shadow) { set(spec.copy(shadow = it)) }
     }
 }

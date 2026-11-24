@@ -25,6 +25,7 @@ import com.versity.launcher.ui.TestTags
 import com.versity.launcher.widget.WidgetRenderer
 import com.versity.launcher.widget.WidgetSpec
 import com.versity.launcher.widget.WidgetStore
+import com.versity.launcher.widget.WidgetStyle
 import com.versity.launcher.widget.WidgetType
 import com.versity.launcher.widget.Widgets
 import kotlin.math.max
@@ -49,7 +50,15 @@ fun WidgetView(
     onLongPress: (() -> Unit)? = null,
     /** Rebuilds the widget when it changes; countdowns pass the minute so their day count stays right. */
     refresh: Any? = null,
+    /** The spinner follows a finger here (the studio preview turns it without opening apps). */
+    spinnable: Boolean = clickable,
+    /** Where a spinner came to rest, to remember it. */
+    onTurn: ((Int) -> Unit)? = null,
 ) {
+    if (spec.style == WidgetStyle.RADIAL_SPINNER) {
+        SpinnerView(spec, modifier, spinnable = spinnable, openApps = clickable, onLongPress = onLongPress, onTurn = onTurn)
+        return
+    }
     val longPress by rememberUpdatedState(onLongPress)
     BoxWithConstraints(modifier) {
         val w = maxWidth.value.roundToInt().coerceAtLeast(1)
@@ -110,6 +119,7 @@ fun HomeWidgetsLayer(
                         clickable = true,
                         onLongPress = { onLongPress(w) },
                         refresh = minute.takeIf { spec.type == WidgetType.COUNTDOWN },
+                        onTurn = { turn -> store.saveHome(w.id, spec.copy(turn = turn)) },
                     )
                 }
             }
