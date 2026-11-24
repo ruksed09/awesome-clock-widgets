@@ -61,6 +61,7 @@ import com.versity.launcher.ui.settings.CustomiseContent
 import com.versity.launcher.ui.settings.CustomiseViewModel
 import com.versity.launcher.ui.theme.DrawerTheme
 import com.versity.launcher.ui.theme.plainDrawerIsLight
+import com.versity.launcher.ui.studio.studioIsDark
 import com.versity.launcher.ui.settings.ApplyTarget
 import com.versity.launcher.ui.settings.ThemeApplyRequest
 import com.versity.launcher.domain.lockLook
@@ -177,8 +178,11 @@ class MainActivity : ComponentActivity() {
             }
 
             val showLock = lockUi || (home.loaded && screen == Screen.HOME && previewingLock)
-            // The plain drawer follows the system theme; in light mode the bars need dark icons.
-            val lightBars = screen == Screen.DRAWER && !showLock && plainDrawerIsLight(home.settings)
+            // Light studio screens (Customise, plain drawer) need dark status and navigation bar icons.
+            val studioLight = !studioIsDark(home.settings.uiMode)
+            val lightBars = !showLock && (
+                (screen == Screen.DRAWER && plainDrawerIsLight(home.settings)) || (screen == Screen.CUSTOMISE && studioLight)
+            )
             LaunchedEffect(lightBars) {
                 WindowCompat.getInsetsController(window, window.decorView).apply {
                     isAppearanceLightStatusBars = lightBars
@@ -236,6 +240,7 @@ class MainActivity : ComponentActivity() {
                         override fun onLockFollowsHome() { customiseVm.setLockTheme(null) }
                         override fun onDrawerStyle(style: DrawerStyle) { customiseVm.setDrawerStyle(style) }
                         override fun onIconStyle(style: IconStyle) { customiseVm.setIconStyle(style) }
+                        override fun onUiMode(mode: com.versity.launcher.data.UiMode) { customiseVm.setUiMode(mode) }
                         override fun onAddWidget(kind: ClockWidgetKind) { widgetStatus = pinWidget(kind) }
                         override fun onLayout(layout: HomeLayout) { customiseVm.setLayout(layout) }
                         override fun onLockStyle(enabled: Boolean) { customiseVm.setLockStyle(enabled) }

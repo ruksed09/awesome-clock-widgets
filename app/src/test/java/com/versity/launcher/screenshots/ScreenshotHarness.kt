@@ -13,6 +13,7 @@ import androidx.compose.ui.test.performClick
 import com.versity.launcher.data.AppEntry
 import com.versity.launcher.data.DrawerStyle
 import com.versity.launcher.data.LauncherSettings
+import com.versity.launcher.data.UiMode
 import com.versity.launcher.domain.ThemePresets
 import com.versity.launcher.domain.withTheme
 import com.versity.launcher.ui.TestTags
@@ -86,21 +87,27 @@ class ScreenshotHarness {
 
     @Test fun customiseTabs() {
         host()
-        val s = LauncherSettings.DEFAULT.withTheme(ThemePresets.theme("celestial")!!)
-        for (tab in CustomiseTab.entries) {
-            shoot("customise_${tab.name.lowercase()}") { CustomiseContent(s, object : CustomiseActions {}, initialTab = tab) }
-            screen = null
-            rule.waitForIdle()
+        for (mode in listOf(UiMode.LIGHT, UiMode.DARK)) {
+            val s = LauncherSettings.DEFAULT.withTheme(ThemePresets.theme("celestial")!!).copy(uiMode = mode)
+            for (tab in CustomiseTab.entries) {
+                shoot("customise_${mode.name.lowercase()}_${tab.name.lowercase()}") { CustomiseContent(s, object : CustomiseActions {}, initialTab = tab) }
+                screen = null
+                rule.waitForIdle()
+            }
         }
     }
 
-    @Test fun applySheet() {
-        val s = LauncherSettings.DEFAULT.withTheme(ThemePresets.theme("orbit")!!)
+    @Test fun applySheetLight() = applySheet(UiMode.LIGHT)
+
+    @Test fun applySheetDark() = applySheet(UiMode.DARK)
+
+    private fun applySheet(mode: UiMode) {
+        val s = LauncherSettings.DEFAULT.withTheme(ThemePresets.theme("orbit")!!).copy(uiMode = mode)
         rule.setContent { CustomiseContent(s, object : CustomiseActions {}) }
         rule.onNodeWithTag(TestTags.theme("celestial")).performClick()
+        rule.mainClock.advanceTimeBy(800)
         rule.waitForIdle()
-        rule.mainClock.advanceTimeBy(400)
-        save("apply_sheet")
+        save("apply_sheet_${mode.name.lowercase()}")
     }
 
     @Test fun drawers() {
@@ -109,7 +116,10 @@ class ScreenshotHarness {
             .map { AppEntry(it, "com.example.${it.lowercase()}", "Main") }
         val state = DrawerUiState(apps = apps, loading = false)
         val themed = LauncherSettings.DEFAULT.withTheme(ThemePresets.theme("celestial")!!)
-        shoot("drawer_plain") { DrawerTheme(themed) { AppDrawerContent(state, {}, {}, settings = themed) } }
+        for (mode in listOf(UiMode.LIGHT, UiMode.DARK)) {
+            val p = themed.copy(uiMode = mode)
+            shoot("drawer_plain_${mode.name.lowercase()}") { DrawerTheme(p) { AppDrawerContent(state, {}, {}, settings = p) } }
+        }
         val t = themed.copy(drawerStyle = DrawerStyle.THEMED)
         shoot("drawer_themed") { DrawerTheme(t) { AppDrawerContent(state, {}, {}, settings = t) } }
     }

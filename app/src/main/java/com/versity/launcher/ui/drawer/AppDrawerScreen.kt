@@ -153,7 +153,7 @@ private fun SearchField(value: String, onChange: (String) -> Unit, modifier: Mod
         modifier = modifier
             .fillMaxWidth()
             .height(40.dp)
-            .border(1.dp, colors.border, RoundedCornerShape(2.dp)),
+            .border(1.dp, colors.border, RoundedCornerShape(6.dp)),
         decorationBox = { inner ->
             Box(Modifier.fillMaxSize().padding(horizontal = 12.dp), contentAlignment = Alignment.CenterStart) {
                 if (value.isEmpty()) {

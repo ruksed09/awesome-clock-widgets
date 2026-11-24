@@ -55,6 +55,10 @@ object TestTags {
     fun drawerStyle(name: String) = "drawer_style_$name"
     fun iconStyle(name: String) = "icon_style_$name"
     fun addWidget(name: String) = "add_widget_$name"
+    const val THEME_TOGGLE = "theme_toggle"
+    const val RESET_CONFIRM = "reset_confirm"
+    const val RESET_CANCEL = "reset_cancel"
+    fun uiMode(name: String) = "ui_mode_$name"
 }
 
 val DimAlphaKey = SemanticsPropertyKey<Float>("DimAlpha")

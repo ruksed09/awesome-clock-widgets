@@ -212,6 +212,15 @@ class SettingsRepositoryTest {
         assertNull(repo.settings.first().wallpaperUri)
     }
 
+    @Test fun appAppearanceDefaultsToSystemAndRoundTrips() = runTest {
+        val repo = newRepo()
+        assertEquals(UiMode.SYSTEM, repo.settings.first().uiMode)
+        for (m in UiMode.entries) {
+            repo.setUiMode(m)
+            assertEquals(m, repo.settings.first().uiMode)
+        }
+    }
+
     @Test fun backdropRoundTripsForEveryBackdrop() = runTest {
         val repo = newRepo()
         assertEquals(LauncherSettings.DEFAULT.backdrop, repo.settings.first().backdrop)

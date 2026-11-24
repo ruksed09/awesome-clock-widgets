@@ -1,15 +1,15 @@
 package com.versity.launcher.ui.theme
 
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.material3.lightColorScheme
-import androidx.compose.ui.res.colorResource
 import com.versity.launcher.data.DrawerStyle
 import com.versity.launcher.data.IconStyle
 import com.versity.launcher.ui.drawer.LocalIconStyle
+import com.versity.launcher.ui.studio.StudioDark
+import com.versity.launcher.ui.studio.StudioLight
+import com.versity.launcher.ui.studio.studioIsDark
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -102,31 +102,22 @@ fun AppTheme(settings: LauncherSettings, content: @Composable () -> Unit) {
 }
 
 /**
- * Neutral look for the plain app drawer: follows the system's light or dark mode, system font and
- * system accent (Android 12+), and ignores the launcher theme entirely.
+ * Neutral look for the plain app drawer: the studio neutrals in the user's light/dark choice (System
+ * by default), the phone's own font, and none of the launcher theme.
  */
 @Composable
-fun PlainTheme(iconStyle: IconStyle, content: @Composable () -> Unit) {
-    val dark = isSystemInDarkTheme()
-    val accent = if (Build.VERSION.SDK_INT >= 31) {
-        colorResource(if (dark) android.R.color.system_accent1_200 else android.R.color.system_accent1_600)
+fun PlainTheme(settings: LauncherSettings, content: @Composable () -> Unit) {
+    val s = if (studioIsDark(settings.uiMode)) StudioDark else StudioLight
+    val colors = LauncherColors(s.page, s.page, s.surface, s.ink, s.muted, s.brandText)
+    val scheme = if (s.dark) {
+        darkColorScheme(primary = s.brand, background = s.page, surface = s.surface, onSurface = s.ink, onSurfaceVariant = s.muted, outline = s.line)
     } else {
-        Color(if (dark) 0xFF8AB4F8 else 0xFF1A73E8)
-    }
-    val colors = if (dark) {
-        LauncherColors(Color(0xFF17181B), Color(0xFF111214), Color(0xFF1F2124), Color(0xFFE6E7EB), Color(0xFFA2A5AD), accent)
-    } else {
-        LauncherColors(Color(0xFFF7F8FA), Color(0xFFF1F2F5), Color(0xFFFFFFFF), Color(0xFF1B1C1F), Color(0xFF5C6068), accent)
-    }
-    val scheme = if (dark) {
-        darkColorScheme(primary = accent, background = colors.backgroundBottom, surface = colors.surface, onSurface = colors.onSurface, onSurfaceVariant = colors.muted, outline = colors.border)
-    } else {
-        lightColorScheme(primary = accent, background = colors.backgroundBottom, surface = colors.surface, onSurface = colors.onSurface, onSurfaceVariant = colors.muted, outline = colors.border)
+        lightColorScheme(primary = s.brand, background = s.page, surface = s.surface, onSurface = s.ink, onSurfaceVariant = s.muted, outline = s.line)
     }
     CompositionLocalProvider(
         LocalLauncherColors provides colors,
         LocalLauncherFont provides FontFamily.Default,
-        LocalIconStyle provides iconStyle,
+        LocalIconStyle provides settings.iconStyle,
     ) {
         MaterialTheme(colorScheme = scheme, content = content)
     }
@@ -135,9 +126,9 @@ fun PlainTheme(iconStyle: IconStyle, content: @Composable () -> Unit) {
 /** The app drawer's look: the theme, or the plain system-like look (the default). */
 @Composable
 fun DrawerTheme(settings: LauncherSettings, content: @Composable () -> Unit) =
-    if (settings.drawerStyle == DrawerStyle.THEMED) AppTheme(settings, content) else PlainTheme(settings.iconStyle, content)
+    if (settings.drawerStyle == DrawerStyle.THEMED) AppTheme(settings, content) else PlainTheme(settings, content)
 
 /** True when the plain drawer is showing in light mode, so the status bar needs dark icons. */
 @Composable
 fun plainDrawerIsLight(settings: LauncherSettings): Boolean =
-    settings.drawerStyle == DrawerStyle.PLAIN && !isSystemInDarkTheme()
+    settings.drawerStyle == DrawerStyle.PLAIN && !studioIsDark(settings.uiMode)

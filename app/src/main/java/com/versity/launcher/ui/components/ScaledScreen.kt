@@ -30,7 +30,7 @@ val PreviewScreenWidth = 360.dp
 val PreviewScreenHeight = 780.dp
 
 private val PreviewNow: LocalDateTime = LocalDateTime.of(2026, 11, 11, 11, 11)
-private val Corner = RoundedCornerShape(2.dp)
+private val Corner = RoundedCornerShape(4.dp)
 
 /**
  * Lays [content] out at a full phone size and draws it scaled down to [width], so previews show the

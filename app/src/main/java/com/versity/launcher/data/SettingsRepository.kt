@@ -48,6 +48,9 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
             iconStyle = prefs[ICON_STYLE]
                 ?.let { name -> IconStyle.entries.firstOrNull { it.name == name } }
                 ?: d.iconStyle,
+            uiMode = prefs[UI_MODE]
+                ?.let { name -> UiMode.entries.firstOrNull { it.name == name } }
+                ?: d.uiMode,
         )
     }
 
@@ -86,6 +89,8 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
     suspend fun setDrawerStyle(style: DrawerStyle) = set(DRAWER_STYLE, style.name)
 
     suspend fun setIconStyle(style: IconStyle) = set(ICON_STYLE, style.name)
+
+    suspend fun setUiMode(mode: UiMode) = set(UI_MODE, mode.name)
 
     /**
      * One transaction: look only. Favourites, lock-style, drawer and icon choices are left alone.
@@ -131,5 +136,6 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         val LOCK_THEME = stringPreferencesKey("lock_theme_id")
         val DRAWER_STYLE = stringPreferencesKey("drawer_style")
         val ICON_STYLE = stringPreferencesKey("icon_style")
+        val UI_MODE = stringPreferencesKey("ui_mode")
     }
 }

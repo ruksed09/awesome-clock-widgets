@@ -15,6 +15,9 @@ enum class Backdrop { NONE, ORBIT, RINGS, HORIZON, WAVES, STARS, AURORA, DUNES, 
 /** PLAIN: neutral drawer that follows the system light/dark mode and font. THEMED: drawer uses the theme. */
 enum class DrawerStyle { PLAIN, THEMED }
 
+/** Light or dark for the launcher's own screens (Customise, sheets, plain drawer). SYSTEM follows the phone. */
+enum class UiMode { SYSTEM, LIGHT, DARK }
+
 /** ORIGINAL: app icons exactly as the apps ship them. THEMED: icons tinted to the theme's accent. */
 enum class IconStyle { ORIGINAL, THEMED }
 
@@ -39,6 +42,7 @@ data class LauncherSettings(
     val lockThemeId: String? = null,
     val drawerStyle: DrawerStyle = DrawerStyle.PLAIN,
     val iconStyle: IconStyle = IconStyle.ORIGINAL,
+    val uiMode: UiMode = UiMode.SYSTEM,
 ) {
     companion object {
         const val MIN_DIM = 0

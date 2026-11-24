@@ -48,6 +48,7 @@ class CustomiseScreenUiTest {
         rule.waitForIdle()
         assertEquals("ember", previewPalette())
         rule.onNodeWithTag(TestTags.RESET).performClick()
+        rule.onNodeWithTag(TestTags.RESET_CONFIRM).performClick()
         rule.waitForIdle()
         assertEquals(LauncherSettings.DEFAULT, settings())
         assertEquals(LauncherSettings.DEFAULT.paletteId, previewPalette())
@@ -129,4 +130,26 @@ class CustomiseScreenUiTest {
     }
 
     private var lastRequest: ThemeApplyRequest? = null
+
+    @Test fun resetAsksBeforeClearingAnything() {
+        var resets = 0
+        val actions = object : CustomiseActions { override fun onReset() { resets++ } }
+        rule.setContent { CustomiseContent(LauncherSettings.DEFAULT, actions) }
+        rule.onNodeWithTag(TestTags.RESET).performClick()
+        rule.onNodeWithTag(TestTags.RESET_CANCEL).performClick()
+        rule.waitForIdle()
+        assertEquals(0, resets)
+    }
+
+    @Test fun themeToggleSwitchesToTheOtherMode() {
+        var mode: com.versity.launcher.data.UiMode? = null
+        val actions = object : CustomiseActions { override fun onUiMode(mode: com.versity.launcher.data.UiMode) { this@CustomiseScreenUiTest.lastMode = mode } }
+        rule.setContent { CustomiseContent(LauncherSettings.DEFAULT.copy(uiMode = com.versity.launcher.data.UiMode.LIGHT), actions) }
+        rule.onNodeWithTag(TestTags.THEME_TOGGLE).performClick()
+        rule.waitForIdle()
+        mode = lastMode
+        assertEquals(com.versity.launcher.data.UiMode.DARK, mode)
+    }
+
+    private var lastMode: com.versity.launcher.data.UiMode? = null
 }
