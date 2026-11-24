@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">Versity</string>
+    <string name="widget_celestial_time_label">Celestial time</string>
+    <string name="widget_celestial_time_desc">Serif time with a starlit line</string>
+    <string name="widget_celestial_time_date_label">Celestial time and date</string>
+    <string name="widget_celestial_time_date_desc">Serif time, starlit line and the date</string>
 </resources>

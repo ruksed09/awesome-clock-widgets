@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Transparent so the wallpaper shows through. TextClock updates itself, so the app never wakes the phone. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="8dp">
+
+    <TextClock
+        android:id="@+id/widget_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:format12Hour="h:mm"
+        android:format24Hour="HH:mm"
+        android:fontFamily="@font/cormorant"
+        android:includeFontPadding="false"
+        android:letterSpacing="0.03"
+        android:shadowColor="#66DCEBFA"
+        android:shadowRadius="14"
+        android:textColor="#DCEBFA"
+        android:textSize="64sp" />
+
+    <ImageView
+        android:layout_width="200dp"
+        android:layout_height="16dp"
+        android:layout_marginTop="4dp"
+        android:importantForAccessibility="no"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_divider_celestial" />
+
+    <TextClock
+        android:id="@+id/widget_date"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:format12Hour="EEEE  ·  d MMMM"
+        android:format24Hour="EEEE  ·  d MMMM"
+        android:fontFamily="@font/cormorant"
+        android:letterSpacing="0.18"
+        android:textAllCaps="true"
+        android:textColor="#B3CBE3"
+        android:textSize="12sp" />
+</LinearLayout>

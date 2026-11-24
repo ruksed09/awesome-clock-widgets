@@ -37,6 +37,10 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
                 ?: d.backdrop,
             favourites = prefs[FAVOURITES]?.split(SEPARATOR)?.filter { it.isNotBlank() } ?: d.favourites,
             lockStyleEnabled = prefs[LOCK_STYLE] ?: d.lockStyleEnabled,
+            ornament = prefs[ORNAMENT]
+                ?.let { name -> Ornament.entries.firstOrNull { it.name == name } }
+                ?: d.ornament,
+            ornamentDate = prefs[ORNAMENT_DATE] ?: d.ornamentDate,
         )
     }
 
@@ -65,6 +69,10 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
 
     suspend fun setLockStyleEnabled(enabled: Boolean) = set(LOCK_STYLE, enabled)
 
+    suspend fun setOrnament(ornament: Ornament) = set(ORNAMENT, ornament.name)
+
+    suspend fun setOrnamentDate(show: Boolean) = set(ORNAMENT_DATE, show)
+
     /** One transaction: look only. Wallpaper, favourites and lock-style are left alone. */
     suspend fun applyTheme(theme: ThemeBundle) {
         dataStore.edit { p ->
@@ -75,6 +83,7 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
             p[LAYOUT] = theme.layout.name
             p[BACKDROP] = theme.backdrop.name
             if (theme.accentArgb == null) p.remove(ACCENT_ARGB) else p[ACCENT_ARGB] = theme.accentArgb
+            theme.ornament?.let { p[ORNAMENT] = it.name }
         }
     }
 
@@ -98,5 +107,7 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         val BACKDROP = stringPreferencesKey("backdrop")
         val FAVOURITES = stringPreferencesKey("favourites")
         val LOCK_STYLE = booleanPreferencesKey("lock_style_enabled")
+        val ORNAMENT = stringPreferencesKey("ornament")
+        val ORNAMENT_DATE = booleanPreferencesKey("ornament_date")
     }
 }

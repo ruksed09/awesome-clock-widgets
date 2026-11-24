@@ -35,6 +35,7 @@ fun DrawScope.drawBackdrop(backdrop: Backdrop, palette: Palette, accent: Color) 
         Backdrop.RINGS -> drawRings(upper, lower)
         Backdrop.HORIZON -> drawHorizon(upper, lower, Color(palette.onSurface))
         Backdrop.WAVES -> drawWaves(upper, accent)
+        Backdrop.STARS -> drawStars(upper, Color(palette.onSurface))
     }
 }
 
@@ -123,4 +124,48 @@ private fun DrawScope.drawWaves(upper: Color, accent: Color) {
         val isAccent = i == 1
         drawPath(path, if (isAccent) accent else upper, alpha = if (isAccent) 0.8f else 0.5f - i * 0.12f, style = Stroke(1.dp.toPx()))
     }
+}
+
+/**
+ * Soft diagonal light beam from the top-left, a scattered starfield and a few four-point sparkles.
+ * Positions come from a fixed seed, so the sky never shuffles between frames or screens.
+ */
+private fun DrawScope.drawStars(beam: Color, star: Color) {
+    val w = size.width
+    val h = size.height
+    val diag = Brush.linearGradient(
+        0f to beam.copy(alpha = 0.32f), 0.35f to beam.copy(alpha = 0.08f), 0.6f to Color.Transparent,
+        start = Offset(0f, 0f), end = Offset(w * 0.9f, h * 0.55f),
+    )
+    drawRect(diag)
+    val glow = Brush.linearGradient(
+        0.5f to Color.Transparent, 1f to beam.copy(alpha = 0.18f),
+        start = Offset(0f, 0f), end = Offset(w, h),
+    )
+    drawRect(glow)
+    val rnd = java.util.Random(1111L)
+    val dot = 1.dp.toPx()
+    repeat(90) {
+        val x = rnd.nextFloat() * w
+        val y = rnd.nextFloat() * h
+        drawCircle(star.copy(alpha = 0.25f + rnd.nextFloat() * 0.6f), dot * (0.4f + rnd.nextFloat() * 0.9f), Offset(x, y))
+    }
+    val unit = min(w, h)
+    listOf(0.14f to 0.42f, 0.82f to 0.33f, 0.68f to 0.58f, 0.2f to 0.72f, 0.88f to 0.8f).forEachIndexed { i, (fx, fy) ->
+        drawStarPoint(Offset(w * fx, h * fy), unit * (if (i == 2) 0.028f else 0.018f), star)
+    }
+}
+
+private fun DrawScope.drawStarPoint(c: Offset, r: Float, ink: Color) {
+    drawCircle(Brush.radialGradient(listOf(ink.copy(alpha = 0.3f), Color.Transparent), c, r * 1.5f), r * 1.5f, c)
+    val k = r * 0.14f
+    val path = Path().apply {
+        moveTo(c.x, c.y - r)
+        quadraticTo(c.x + k, c.y - k, c.x + r, c.y)
+        quadraticTo(c.x + k, c.y + k, c.x, c.y + r)
+        quadraticTo(c.x - k, c.y + k, c.x - r, c.y)
+        quadraticTo(c.x - k, c.y - k, c.x, c.y - r)
+        close()
+    }
+    drawPath(path, ink.copy(alpha = 0.9f))
 }

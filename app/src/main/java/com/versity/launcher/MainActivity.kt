@@ -182,6 +182,8 @@ class MainActivity : ComponentActivity() {
                         override fun onLayout(layout: HomeLayout) { customiseVm.setLayout(layout) }
                         override fun onLockStyle(enabled: Boolean) { customiseVm.setLockStyle(enabled) }
                         override fun onBackdrop(backdrop: Backdrop) { customiseVm.setBackdrop(backdrop) }
+                        override fun onOrnament(ornament: com.versity.launcher.data.Ornament) { customiseVm.setOrnament(ornament) }
+                        override fun onOrnamentDate(show: Boolean) { customiseVm.setOrnamentDate(show) }
                         override fun onPreviewLock() { previewingLock = true; screen = Screen.HOME }
                         override fun onSetLockWallpaper() {
                             lockWallpaperStatus = "Applying\u2026"

@@ -18,6 +18,8 @@ class CustomiseViewModel(private val repo: SettingsRepository) : ViewModel() {
     fun setAccent(argb: Long?) = viewModelScope.launch { repo.setAccentArgb(argb) }
     fun setBackdrop(backdrop: com.versity.launcher.data.Backdrop) = viewModelScope.launch { repo.setBackdrop(backdrop) }
     fun setLayout(layout: HomeLayout) = viewModelScope.launch { repo.setLayout(layout) }
+    fun setOrnament(o: com.versity.launcher.data.Ornament) = viewModelScope.launch { repo.setOrnament(o) }
+    fun setOrnamentDate(show: Boolean) = viewModelScope.launch { repo.setOrnamentDate(show) }
     fun setLockStyle(enabled: Boolean) = viewModelScope.launch { repo.setLockStyleEnabled(enabled) }
     fun setFavourites(keys: List<String>) = viewModelScope.launch { repo.setFavourites(keys) }
     fun applyTheme(theme: ThemeBundle) = viewModelScope.launch { repo.applyTheme(theme) }

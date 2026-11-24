@@ -43,6 +43,7 @@ import com.versity.launcher.ui.home.HomeBackground
 import com.versity.launcher.ui.home.HomeDateFormat
 import com.versity.launcher.ui.home.components.BatteryBar
 import com.versity.launcher.ui.home.components.CenteredClock
+import com.versity.launcher.ui.home.components.showsOwnDate
 import com.versity.launcher.ui.home.components.DateRing
 import com.versity.launcher.ui.home.HomeUiState
 import com.versity.launcher.ui.home.components.NotificationPill
@@ -105,7 +106,7 @@ fun LockStyleContent(state: HomeUiState, onUnlock: () -> Unit, modifier: Modifie
             when (state.settings.layout) {
                 // Orbit: centred date and clock, widget row, chip.
                 HomeLayout.ORBIT -> {
-                    OrbitHeader(state.now, state.is24Hour, state.settings.clockStyle, state.batteryPercent)
+                    OrbitHeader(state.now, state.is24Hour, state.settings, state.batteryPercent)
                     Spacer(Modifier.weight(1f))
                     NotificationPill()
                     Spacer(Modifier.height(32.dp))
@@ -126,14 +127,16 @@ fun LockStyleContent(state: HomeUiState, onUnlock: () -> Unit, modifier: Modifie
                 // Minimal: just the date, a centred clock and the handle.
                 HomeLayout.MINIMAL -> {
                     Spacer(Modifier.weight(0.6f))
-                    Text(
-                        state.now.format(HomeDateFormat),
-                        color = colors.onSurface.copy(alpha = 0.85f),
-                        fontFamily = LauncherTheme.font,
-                        fontSize = 16.sp,
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    CenteredClock(state.settings.clockStyle, state.now.toLocalTime(), state.is24Hour)
+                    if (!state.settings.showsOwnDate) {
+                        Text(
+                            state.now.format(HomeDateFormat),
+                            color = colors.onSurface.copy(alpha = 0.85f),
+                            fontFamily = LauncherTheme.font,
+                            fontSize = 16.sp,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                    }
+                    CenteredClock(state.settings, state.now, state.is24Hour)
                     Spacer(Modifier.weight(1f))
                 }
             }

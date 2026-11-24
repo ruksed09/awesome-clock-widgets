@@ -151,6 +151,27 @@ class SettingsRepositoryTest {
         assertNull(repo.settings.first().accentArgb)
     }
 
+    @Test fun ornamentAndDateRoundTrip() = runTest {
+        val repo = newRepo()
+        assertEquals(Ornament.CELESTIAL, repo.settings.first().ornament)
+        assertEquals(false, repo.settings.first().ornamentDate)
+        for (o in Ornament.entries) {
+            repo.setOrnament(o)
+            assertEquals(o, repo.settings.first().ornament)
+        }
+        repo.setOrnamentDate(true)
+        assertEquals(true, repo.settings.first().ornamentDate)
+    }
+
+    @Test fun themeWithOrnamentSetsItAndThemeWithoutKeepsIt() = runTest {
+        val repo = newRepo()
+        repo.setOrnament(Ornament.MOON)
+        repo.applyTheme(ThemeBundle("t", "T", "tag", "midnight", "inter", ClockStyle.STACKED, 30, null, HomeLayout.CLASSIC, Backdrop.NONE))
+        assertEquals(Ornament.MOON, repo.settings.first().ornament)
+        repo.applyTheme(ThemeBundle("c", "C", "tag", "abyss", "cormorant", ClockStyle.ORNAMENT, 20, null, HomeLayout.MINIMAL, Backdrop.STARS, Ornament.CORNERS))
+        assertEquals(Ornament.CORNERS, repo.settings.first().ornament)
+    }
+
     @Test fun backdropRoundTripsForEveryBackdrop() = runTest {
         val repo = newRepo()
         assertEquals(LauncherSettings.DEFAULT.backdrop, repo.settings.first().backdrop)

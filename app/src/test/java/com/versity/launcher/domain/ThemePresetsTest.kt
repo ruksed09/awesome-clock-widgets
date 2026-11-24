@@ -72,8 +72,19 @@ class ThemePresetsTest {
         }
     }
 
-    @Test fun allThreeClockStylesAreOffered() {
-        assertEquals(setOf(ClockStyle.STACKED, ClockStyle.SINGLE_LINE, ClockStyle.ANALOGUE), ThemePresets.clockStyles.toSet())
+    @Test fun everyClockStyleIsOffered() {
+        assertEquals(
+            setOf(ClockStyle.STACKED, ClockStyle.SINGLE_LINE, ClockStyle.ANALOGUE, ClockStyle.ORNAMENT),
+            ThemePresets.clockStyles.toSet(),
+        )
+    }
+
+    @Test fun celestialThemeUsesOrnamentSerifAndStars() {
+        val t = ThemePresets.themes.first { it.id == "celestial" }
+        assertEquals(ClockStyle.ORNAMENT, t.clockStyle)
+        assertEquals("cormorant", t.fontId)
+        assertEquals(Backdrop.STARS, t.backdrop)
+        assertEquals(com.versity.launcher.data.Ornament.CELESTIAL, t.ornament)
     }
 
     @Test fun atLeastFourBundledThemes() {

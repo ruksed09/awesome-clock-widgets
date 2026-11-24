@@ -1,9 +1,16 @@
 package com.versity.launcher.data
 
-enum class ClockStyle { STACKED, SINGLE_LINE, ANALOGUE }
+enum class ClockStyle { STACKED, SINGLE_LINE, ANALOGUE, ORNAMENT }
+
+/**
+ * Decoration drawn with the ORNAMENT clock style.
+ * CELESTIAL: fading line with a four-point star in the middle. UNDERLINE: fading line only.
+ * MOON: fading line with a crescent. CORNERS: thin corner marks framing the time.
+ */
+enum class Ornament { CELESTIAL, UNDERLINE, MOON, CORNERS }
 
 /** The decorative drawing behind everything: home, lock-style screen, drawer, previews and the exported lock wallpaper. */
-enum class Backdrop { NONE, ORBIT, RINGS, HORIZON, WAVES }
+enum class Backdrop { NONE, ORBIT, RINGS, HORIZON, WAVES, STARS }
 
 /** CLASSIC: clock, widgets, dock. MINIMAL: clock, favourites, dock. ORBIT: centred date and clock, widget row, two large circles. */
 enum class HomeLayout { CLASSIC, MINIMAL, ORBIT }
@@ -19,6 +26,9 @@ data class LauncherSettings(
     val backdrop: Backdrop = Backdrop.ORBIT,
     val favourites: List<String> = emptyList(), // AppEntry.key values, in display order
     val lockStyleEnabled: Boolean = false,
+    val ornament: Ornament = Ornament.CELESTIAL,
+    /** ORNAMENT style only: show the date under the divider (and hide the separate date line). */
+    val ornamentDate: Boolean = false,
 ) {
     companion object {
         const val MIN_DIM = 0

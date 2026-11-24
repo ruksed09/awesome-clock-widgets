@@ -64,6 +64,7 @@ import com.versity.launcher.data.Backdrop
 import com.versity.launcher.data.ClockStyle
 import com.versity.launcher.data.HomeLayout
 import com.versity.launcher.data.LauncherSettings
+import com.versity.launcher.data.Ornament
 import com.versity.launcher.domain.ThemeBundle
 import com.versity.launcher.domain.ThemePresets
 import com.versity.launcher.ui.TestTags
@@ -72,6 +73,7 @@ import com.versity.launcher.ui.home.components.BatteryBar
 import com.versity.launcher.ui.home.components.BigAnalogueClock
 import com.versity.launcher.ui.home.components.SingleLineClock
 import com.versity.launcher.ui.home.components.StackedClock
+import com.versity.launcher.ui.home.components.OrnamentClock
 import com.versity.launcher.ui.previewPalette
 import com.versity.launcher.ui.theme.AppTheme
 import com.versity.launcher.ui.theme.LauncherTheme
@@ -90,6 +92,8 @@ interface CustomiseActions {
     fun onLayout(layout: HomeLayout) {}
     fun onLockStyle(enabled: Boolean) {}
     fun onBackdrop(backdrop: Backdrop) {}
+    fun onOrnament(ornament: Ornament) {}
+    fun onOrnamentDate(show: Boolean) {}
     fun onPreviewLock() {}
     fun onSetLockWallpaper() {}
     fun onReset() {}
@@ -97,6 +101,7 @@ interface CustomiseActions {
 
 private val Corner = RoundedCornerShape(2.dp)
 private val PreviewTime: LocalTime = LocalTime.of(4, 22)
+private val PreviewDate: java.time.LocalDate = java.time.LocalDate.of(2026, 11, 11)
 private val AccentSwatches = listOf(
     0xFF8FA3FFL, 0xFF4FC3E8L, 0xFF5ED6A0L, 0xFFFFD166L,
     0xFFFF8A5CL, 0xFFFF6B8BL, 0xFFC792EAL, 0xFFE8EAF2L,
@@ -107,6 +112,7 @@ private fun backdropLabel(b: Backdrop) = when (b) {
     Backdrop.RINGS -> "Rings"
     Backdrop.HORIZON -> "Horizon"
     Backdrop.WAVES -> "Waves"
+    Backdrop.STARS -> "Stars"
 }
 
 private fun layoutLabel(l: HomeLayout) = when (l) {
@@ -122,6 +128,14 @@ private fun clockStyleLabel(s: ClockStyle) = when (s) {
     ClockStyle.STACKED -> "Stacked"
     ClockStyle.SINGLE_LINE -> "Single line"
     ClockStyle.ANALOGUE -> "Analogue"
+    ClockStyle.ORNAMENT -> "Ornament"
+}
+
+private fun ornamentLabel(o: Ornament) = when (o) {
+    Ornament.CELESTIAL -> "Celestial line"
+    Ornament.UNDERLINE -> "Underline"
+    Ornament.MOON -> "Moon divider"
+    Ornament.CORNERS -> "Frame corners"
 }
 
 @Composable
@@ -222,6 +236,10 @@ private fun Preview(settings: LauncherSettings, modifier: Modifier = Modifier) {
                 ClockStyle.STACKED -> StackedClock(PreviewTime, true, Modifier.fillMaxWidth(), sizeRange = 28f..40f, centered = centered)
                 ClockStyle.SINGLE_LINE -> SingleLineClock(PreviewTime, true, Modifier.fillMaxWidth(), sizeRange = 28f..38f, centered = centered)
                 ClockStyle.ANALOGUE -> BigAnalogueClock(PreviewTime, Modifier.size(84.dp))
+                ClockStyle.ORNAMENT -> OrnamentClock(
+                    PreviewTime, true, settings.ornament, Modifier.fillMaxWidth(),
+                    date = PreviewDate.takeIf { settings.ornamentDate }, sizeRange = 30f..44f, centered = centered || settings.layout == HomeLayout.MINIMAL,
+                )
             }
             BatteryBar(72, Modifier.fillMaxWidth())
         }
@@ -273,6 +291,19 @@ private fun Controls(
                 ThemePresets.clockStyles.forEach { style ->
                     Choice(clockStyleLabel(style), settings.clockStyle == style, TestTags.clockStyle(style.name)) { actions.onClockStyle(style) }
                 }
+            }
+            if (settings.clockStyle == ClockStyle.ORNAMENT) {
+                Spacer(Modifier.height(4.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Ornament.entries.forEach { o ->
+                        Choice(ornamentLabel(o), settings.ornament == o, TestTags.ornament(o.name)) { actions.onOrnament(o) }
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Choice("Time only", !settings.ornamentDate, TestTags.ORNAMENT_DATE + "_off") { actions.onOrnamentDate(false) }
+                    Choice("Time and date", settings.ornamentDate, TestTags.ORNAMENT_DATE + "_on") { actions.onOrnamentDate(true) }
+                }
+                Hint("Thin digits with a decorative line. Pairs well with the Cormorant font and the Stars backdrop, or apply the Celestial theme.")
             }
         }
         Section("Layout") {
@@ -328,7 +359,7 @@ private fun Controls(
             Hint(lockWallpaperStatus ?: "Applies this theme's background to your real lock screen. Your phone's own clock stays on top.")
         }
         Section("About") {
-            Hint("Fonts: Inter, Space Grotesk, Outfit and Roboto Mono, licensed under the SIL Open Font License 1.1. Licence texts are bundled in the app's assets/licenses folder.")
+            Hint("Fonts: Inter, Space Grotesk, Outfit, Roboto Mono and Cormorant Garamond, licensed under the SIL Open Font License 1.1. Licence texts are bundled in the app's assets/licenses folder.")
         }
         Spacer(Modifier.height(24.dp))
     }

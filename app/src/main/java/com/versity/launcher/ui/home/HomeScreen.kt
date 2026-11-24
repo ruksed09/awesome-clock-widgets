@@ -59,6 +59,8 @@ import com.versity.launcher.ui.home.components.Dock
 import com.versity.launcher.ui.home.components.NotificationPill
 import com.versity.launcher.ui.home.components.SingleLineClock
 import com.versity.launcher.ui.home.components.StackedClock
+import com.versity.launcher.ui.home.components.OrnamentClock
+import com.versity.launcher.ui.home.components.showsOwnDate
 import com.versity.launcher.ui.theme.AppTheme
 import com.versity.launcher.ui.theme.LauncherTheme
 import java.time.LocalDateTime
@@ -227,7 +229,7 @@ private fun OrbitLayout(state: HomeUiState, actions: HomeActions, wide: Boolean)
     if (wide) {
         Row(Modifier.fillMaxSize().padding(32.dp), horizontalArrangement = Arrangement.spacedBy(32.dp)) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
-                OrbitHeader(state.now, state.is24Hour, s.clockStyle, state.batteryPercent)
+                OrbitHeader(state.now, state.is24Hour, s, state.batteryPercent)
             }
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Bottom) {
                 NotificationPill()
@@ -240,7 +242,7 @@ private fun OrbitLayout(state: HomeUiState, actions: HomeActions, wide: Boolean)
     } else {
         Column(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(Modifier.height(24.dp))
-            OrbitHeader(state.now, state.is24Hour, s.clockStyle, state.batteryPercent)
+            OrbitHeader(state.now, state.is24Hour, s, state.batteryPercent)
             Spacer(Modifier.weight(1f))
             NotificationPill()
             Spacer(Modifier.height(16.dp))
@@ -259,13 +261,20 @@ internal fun ClockBlock(state: HomeUiState) {
             ClockStyle.STACKED -> StackedClock(time, state.is24Hour, Modifier.fillMaxWidth())
             ClockStyle.SINGLE_LINE -> SingleLineClock(time, state.is24Hour, Modifier.fillMaxWidth())
             ClockStyle.ANALOGUE -> BigAnalogueClock(time, Modifier.size(160.dp))
+            ClockStyle.ORNAMENT -> OrnamentClock(
+                time, state.is24Hour, state.settings.ornament, Modifier.fillMaxWidth(),
+                date = state.now.toLocalDate().takeIf { state.settings.ornamentDate },
+                sizeRange = 48f..96f, centered = state.settings.layout == HomeLayout.MINIMAL,
+            )
         }
-        Text(
-            text = state.now.format(HomeDateFormat),
-            color = LauncherTheme.colors.muted,
-            fontFamily = LauncherTheme.font,
-            fontSize = 14.sp,
-        )
+        if (!state.settings.showsOwnDate) {
+            Text(
+                text = state.now.format(HomeDateFormat),
+                color = LauncherTheme.colors.muted,
+                fontFamily = LauncherTheme.font,
+                fontSize = 14.sp,
+            )
+        }
     }
 }
 

@@ -5,6 +5,7 @@ import com.versity.launcher.R
 import com.versity.launcher.data.Backdrop
 import com.versity.launcher.data.ClockStyle
 import com.versity.launcher.data.HomeLayout
+import com.versity.launcher.data.Ornament
 
 /** All colours are opaque ARGB longs (0xFFRRGGBB). */
 data class Palette(
@@ -33,6 +34,8 @@ data class ThemeBundle(
     val accentArgb: Long?,
     val layout: HomeLayout,
     val backdrop: Backdrop,
+    /** Ornament to apply with the theme; null leaves the current one. */
+    val ornament: Ornament? = null,
 )
 
 data class FontOption(val id: String, val name: String, @FontRes val resId: Int)
@@ -75,6 +78,13 @@ object ThemePresets {
             accent = 0xFFB69CFF,
             rimUpper = 0xFFA9B7CC, rimLower = 0xFFB48CFF,
         ),
+        Palette(
+            id = "abyss", name = "Abyss",
+            backgroundTop = 0xFF1B3F66, backgroundBottom = 0xFF06142A,
+            surface = 0xFF0E2238, onSurface = 0xFFDCEBFA, onSurfaceMuted = 0xFF9DB6CF,
+            accent = 0xFFBFE0FF,
+            rimUpper = 0xFFCFE6FF, rimLower = 0xFF7FA8D6,
+        ),
     )
 
     val fonts: List<FontOption> = listOf(
@@ -82,6 +92,7 @@ object ThemePresets {
         FontOption("space_grotesk", "Space Grotesk", R.font.space_grotesk),
         FontOption("outfit", "Outfit", R.font.outfit),
         FontOption("roboto_mono", "Roboto Mono", R.font.roboto_mono),
+        FontOption("cormorant", "Cormorant", R.font.cormorant),
     )
 
     val clockStyles: List<ClockStyle> = ClockStyle.entries
@@ -93,6 +104,7 @@ object ThemePresets {
         ThemeBundle("tide", "Tide", "Calm blues, clean sans", "ocean", "inter", ClockStyle.SINGLE_LINE, 25, null, HomeLayout.CLASSIC, Backdrop.WAVES),
         ThemeBundle("dusk", "Dusk", "Warm tones, analogue face", "ember", "outfit", ClockStyle.ANALOGUE, 35, null, HomeLayout.CLASSIC, Backdrop.HORIZON),
         ThemeBundle("mono", "Mono", "Graphite, monospace, nothing extra", "graphite", "roboto_mono", ClockStyle.SINGLE_LINE, 40, null, HomeLayout.MINIMAL, Backdrop.NONE),
+        ThemeBundle("celestial", "Celestial", "Serif time, starlit line, deep blue", "abyss", "cormorant", ClockStyle.ORNAMENT, 20, null, HomeLayout.MINIMAL, Backdrop.STARS, Ornament.CELESTIAL),
     )
 
     /** Unknown ids fall back to the first palette so a stale stored id never crashes the UI. */

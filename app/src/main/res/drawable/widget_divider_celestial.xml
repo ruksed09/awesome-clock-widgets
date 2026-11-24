@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fading line with a four-point star in the middle, matching OrnamentClock's CELESTIAL divider. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="240dp"
+    android:height="20dp"
+    android:viewportWidth="240"
+    android:viewportHeight="20">
+    <path android:pathData="M0,9.5h108v1h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="0" android:startY="10" android:endX="108" android:endY="10"
+                android:startColor="#00DCEBFA" android:endColor="#BFDCEBFA" />
+        </aapt:attr>
+    </path>
+    <path android:pathData="M132,9.5h108v1h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="132" android:startY="10" android:endX="240" android:endY="10"
+                android:startColor="#BFDCEBFA" android:endColor="#00DCEBFA" />
+        </aapt:attr>
+    </path>
+    <path android:pathData="M120,10m-9,0a9,9 0,1 1,18 0a9,9 0,1 1,-18 0">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="radial" android:centerX="120" android:centerY="10" android:gradientRadius="9"
+                android:startColor="#55DCEBFA" android:endColor="#00DCEBFA" />
+        </aapt:attr>
+    </path>
+    <path android:fillColor="#FFDCEBFA"
+        android:pathData="M120,2 Q121.2,8.8 128,10 Q121.2,11.2 120,18 Q118.8,11.2 112,10 Q118.8,8.8 120,2 Z" />
+</vector>
