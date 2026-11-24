@@ -1,0 +1,31 @@
+# Versity Launcher
+
+Native Android home-screen launcher (Kotlin, Jetpack Compose, Material 3). Package `com.versity.launcher`.
+Built from `launcher_plan.md`. Customisable: wallpaper + dim, clock style + font, colour palette + accent.
+
+## Build and test
+
+```bash
+./gradlew testDebugUnitTest        # JVM unit tests (settings, presets, apps, battery, manifest)
+./gradlew assembleDebug            # app/build/outputs/apk/debug/app-debug.apk
+./gradlew connectedDebugAndroidTest  # Compose UI tests; needs a device or emulator
+```
+
+Create `local.properties` with `sdk.dir=/path/to/Android/sdk` if Android Studio has not done so.
+Requires JDK 17+. Library versions are pinned to what AGP 8.13 and compileSdk 36 accept.
+
+## Using it
+
+Install, press Home, and choose Versity as the home app (or tap "Set" on the in-app banner).
+Open Customise with long-press on the home screen or the sliders icon at the top right.
+
+## Limits
+
+- A third-party launcher cannot replace the system lock screen; the lock-style look is on the home screen only.
+- No notification access in v1, so the notification chip shows a dash instead of a count.
+- No background services; battery and time only update while the home screen is visible.
+
+## Credits
+
+Fonts (SIL Open Font License 1.1, texts in `app/src/main/assets/licenses/`): Inter, Space Grotesk, Outfit, Roboto Mono.
+All icons and the launcher mark are drawn in code or as vector drawables in this repo.

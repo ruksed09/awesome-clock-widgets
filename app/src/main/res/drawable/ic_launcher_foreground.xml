@@ -1,0 +1,9 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- Original mark: a thin ring with a centred bar (clock-hand motif). -->
+    <path android:strokeColor="#E8EAF2" android:strokeWidth="3" android:fillColor="#00000000"
+        android:pathData="M54,54m-20,0a20,20 0,1 1,40 0a20,20 0,1 1,-40 0" />
+    <path android:strokeColor="#8FA3FF" android:strokeWidth="3" android:strokeLineCap="butt"
+        android:pathData="M54,54L54,40M54,54L64,60" />
+</vector>
