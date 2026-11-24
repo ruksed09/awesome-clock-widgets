@@ -35,7 +35,7 @@ class WidgetSpecTest {
 
     @Test fun everyFamilyHasStylesAndADefaultFromIt() {
         for (type in WidgetType.entries) {
-            assertTrue(WidgetStyle.of(type).size >= 3)
+            assertTrue(WidgetStyle.of(type).size >= if (type.collection) 2 else 3)
             assertEquals(type, WidgetSpec.default(type).type)
         }
     }
@@ -85,5 +85,37 @@ class WidgetSpecTest {
             assertEquals("$style", style in numerals, WidgetSpec(style).usesTypeface)
         }
         assertTrue(WidgetStyle.of(WidgetType.ANALOGUE).size >= 7)
+    }
+
+    @Test fun collectionFieldsSurviveAwkwardCharacters() {
+        val spec = WidgetSpec.default(WidgetType.LAUNCHER).copy(
+            title = "Doom|sday = 100%, soon", target = 1_797_552_000_000L,
+            apps = listOf("com.a/com.a.Main#0", "", "com.b/.X#10"), image = "file:///data/photos/p|1.jpg",
+            iconScale = 55, spacing = 12, ringWidth = 7, rings = 3, shadow = false,
+        )
+        val back = WidgetSpec.decode(spec.encode(), WidgetType.LAUNCHER)
+        assertEquals(spec.title, back.title)
+        assertEquals(spec.target, back.target)
+        assertEquals(listOf("com.a/com.a.Main#0", "com.b/.X#10"), back.apps)
+        assertEquals(spec.image, back.image)
+        assertEquals(spec.copy(apps = back.apps), back)
+    }
+
+    @Test fun countdownSplitsIntoDaysAndAFinalDayTimer() {
+        val day = 86_400_000L
+        val now = 1_000_000_000_000L
+        val target = now + 22 * day + (7 * 3600 + 8 * 60 + 5) * 1000L
+        val st = Collection.state(target, now)
+        assertEquals(22L, st.days)
+        assertEquals(now + (7 * 3600 + 8 * 60 + 5) * 1000L, st.timerEnd)
+        assertEquals(false, st.done)
+        assertEquals(true, Collection.state(now - 1, now).done)
+    }
+
+    @Test fun anUnsetCountdownCountsToNewYear() {
+        val zone = java.time.ZoneId.of("UTC")
+        val now = java.time.ZonedDateTime.of(2026, 11, 24, 10, 0, 0, 0, zone).toInstant().toEpochMilli()
+        val t = Collection.target(WidgetSpec.default(WidgetType.COUNTDOWN), zone, now)
+        assertEquals(java.time.ZonedDateTime.of(2027, 1, 1, 0, 0, 0, 0, zone).toInstant().toEpochMilli(), t)
     }
 }

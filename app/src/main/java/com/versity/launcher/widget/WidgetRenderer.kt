@@ -27,8 +27,25 @@ object WidgetRenderer {
         R.id.w_kicker, R.id.w_title, R.id.w_time, R.id.w_hour, R.id.w_minute, R.id.w_day, R.id.w_date, R.id.w_date_caps,
     )
 
-    fun build(context: Context, spec: WidgetSpec, widthDp: Int, heightDp: Int, locale: Locale = Locale.getDefault()): RemoteViews {
+    /**
+     * [interactive] attaches the collection's own tap actions (opening apps); previews in the studio
+     * leave it off so tapping a preview never launches anything.
+     */
+    fun build(
+        context: Context,
+        spec: WidgetSpec,
+        widthDp: Int,
+        heightDp: Int,
+        locale: Locale = Locale.getDefault(),
+        interactive: Boolean = true,
+    ): RemoteViews {
+        when (spec.type) {
+            WidgetType.LAUNCHER -> return Collection.radial(context, spec, widthDp, heightDp, interactive)
+            WidgetType.SHORTCUT, WidgetType.BADGE -> return Collection.art(context, spec, widthDp, heightDp, interactive)
+            else -> Unit
+        }
         val views = when {
+            spec.type == WidgetType.COUNTDOWN -> Collection.countdown(context, spec, locale)
             spec.type == WidgetType.ANALOGUE -> analogue(context, spec, widthDp, heightDp)
             spec.style == WidgetStyle.MONTH -> month(context, spec, widthDp, heightDp, locale)
             else -> text(context, spec, locale)
@@ -195,6 +212,8 @@ object WidgetRenderer {
             val tint = if (spec.background == WidgetBackground.GLASS) 0xFFFFFFFF.toInt() else spec.backgroundColor.toInt()
             views.setInt(R.id.w_bg, "setColorFilter", tint)
             views.setInt(R.id.w_bg, "setImageAlpha", alpha255(spec.opacity))
+        } else {
+            views.setViewVisibility(R.id.w_bg, View.GONE)
         }
         if (spec.border) {
             views.setViewVisibility(R.id.w_border, View.VISIBLE)
@@ -228,7 +247,7 @@ object WidgetRenderer {
         WidgetAlign.END -> Gravity.END
     }
 
-    private fun alpha255(percent: Int) = (percent.coerceIn(0, 100) * 255 / 100)
+    internal fun alpha255(percent: Int) = (percent.coerceIn(0, 100) * 255 / 100)
 
     private fun withAlpha(color: Int, alpha: Int) = (color and 0x00FFFFFF) or (alpha shl 24)
 

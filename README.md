@@ -41,6 +41,10 @@ python3 tools/widgets/generate_layouts.py   # writes app/src/main/res/layout/wid
 python3 tools/widgets/generate_analog.py    # analogue hands (light and dark ink) and layouts
 ```
 
+The collection (countdown, radial app launcher, app shortcut, badge) lives in `widget/CollectionWidgets.kt`
+and `widget/CollectionArt.kt`: the countdown uses a Chronometer that counts down by itself, and the
+other three are drawn to bitmaps with tap targets laid over them.
+
 Analogue dials (marks, numerals and face) are drawn to a bitmap by `widget/AnalogDial.kt`, which works
 in widgets on every Android version; hands are recoloured on Android 12 and newer.
 

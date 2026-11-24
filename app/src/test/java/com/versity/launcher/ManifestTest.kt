@@ -56,7 +56,8 @@ class ManifestTest {
     @Test fun onlyWallpaperAndUpdatePermissionsAreRequested() {
         val perms = doc.getElementsByTagName("uses-permission").elements().map { it.name() }.toSet()
         assertEquals(
-            setOf("android.permission.SET_WALLPAPER", "android.permission.INTERNET", "android.permission.REQUEST_INSTALL_PACKAGES"),
+            setOf("android.permission.SET_WALLPAPER", "android.permission.INTERNET", "android.permission.REQUEST_INSTALL_PACKAGES",
+                "android.permission.RECEIVE_BOOT_COMPLETED"),
             perms,
         )
     }

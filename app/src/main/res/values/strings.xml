@@ -9,4 +9,12 @@
     <string name="widget_date_label">Date and calendar</string>
     <string name="widget_date_desc">A day card, a date line or the month at a glance</string>
     <string name="widget_studio_title">Widget studio</string>
+    <string name="widget_countdown_label">Countdown</string>
+    <string name="widget_countdown_desc">Live days, hours, minutes and seconds to your event</string>
+    <string name="widget_launcher_label">App launcher</string>
+    <string name="widget_launcher_desc">Five apps on one radial shape</string>
+    <string name="widget_shortcut_label">App shortcut</string>
+    <string name="widget_shortcut_desc">One app in layered rings</string>
+    <string name="widget_badge_label">Badge</string>
+    <string name="widget_badge_desc">A scalloped badge with your logo or an app</string>
 </resources>

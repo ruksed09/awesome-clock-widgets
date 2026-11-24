@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Countdown widget. The Chronometer counts down by itself (no per-second updates from the app); the
+  day count is redrawn when the clock passes the event's time of day. Text shown here is the preview.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/w_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <ImageView
+        android:id="@+id/w_bg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no"
+        android:scaleType="fitXY"
+        android:src="@drawable/wbg_fill_r28"
+        android:tint="#F00E1913" />
+
+    <ImageView
+        android:id="@+id/w_border"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no"
+        android:scaleType="fitXY"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/w_content"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="14dp">
+
+        <TextView
+            android:id="@+id/w_cd_title"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1.15"
+            android:autoSizeMaxTextSize="44sp"
+            android:autoSizeMinTextSize="10sp"
+            android:autoSizeStepGranularity="1sp"
+            android:autoSizeTextType="uniform"
+            android:fontFamily="@font/outfit"
+            android:fontFeatureSettings="lnum, tnum"
+            android:fontVariationSettings="'wght' 500"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:letterSpacing="0.32"
+            android:maxLines="1"
+            android:textAllCaps="true"
+            android:text="New year"
+            android:textColor="#7DD69B" />
+
+        <TextView
+            android:id="@+id/w_cd_until"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="0.55"
+            android:autoSizeMaxTextSize="18sp"
+            android:autoSizeMinTextSize="7sp"
+            android:autoSizeStepGranularity="1sp"
+            android:autoSizeTextType="uniform"
+            android:fontFamily="@font/outfit"
+            android:fontFeatureSettings="lnum, tnum"
+            android:fontVariationSettings="'wght' 400"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:letterSpacing="0.12"
+            android:maxLines="1"
+            android:textAllCaps="true"
+            android:text="Until Fri, 1 Jan 2027"
+            android:textColor="#99E8EEE9" />
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="6dp" />
+
+        <LinearLayout
+            android:id="@+id/w_cd_row"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1.8"
+            android:orientation="horizontal">
+
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1">
+
+                <ImageView
+                    android:id="@+id/w_cd_days_bg"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:importantForAccessibility="no"
+                    android:scaleType="fitXY"
+                    android:src="@drawable/wbg_fill_r28"
+                    android:tint="#FF17241C" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:padding="6dp">
+
+        <TextView
+            android:id="@+id/w_cd_days"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1.3"
+            android:autoSizeMaxTextSize="40sp"
+            android:autoSizeMinTextSize="9sp"
+            android:autoSizeStepGranularity="1sp"
+            android:autoSizeTextType="uniform"
+            android:fontFamily="@font/outfit"
+            android:fontFeatureSettings="lnum, tnum"
+            android:fontVariationSettings="'wght' 500"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:letterSpacing="0.0"
+            android:maxLines="1"
+            android:text="36"
+            android:textColor="#7DD69B" />
+
+        <TextView
+            android:id="@+id/w_cd_days_label"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="0.8"
+            android:autoSizeMaxTextSize="16sp"
+            android:autoSizeMinTextSize="6sp"
+            android:autoSizeStepGranularity="1sp"
+            android:autoSizeTextType="uniform"
+            android:fontFamily="@font/outfit"
+            android:fontFeatureSettings="lnum, tnum"
+            android:fontVariationSettings="'wght' 400"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:letterSpacing="0.08"
+            android:maxLines="1"
+            android:textAllCaps="true"
+            android:text="Days"
+            android:textColor="#99E8EEE9" />
+                </LinearLayout>
+            </FrameLayout>
+
+            <FrameLayout
+                android:layout_width="8dp"
+                android:layout_height="match_parent" />
+
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="2.3">
+
+                <ImageView
+                    android:id="@+id/w_cd_timer_bg"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:importantForAccessibility="no"
+                    android:scaleType="fitXY"
+                    android:src="@drawable/wbg_fill_r28"
+                    android:tint="#FF17241C" />
+
+                <Chronometer
+                    android:id="@+id/w_cd_timer"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:autoSizeMaxTextSize="56sp"
+                    android:autoSizeMinTextSize="10sp"
+                    android:autoSizeStepGranularity="1sp"
+                    android:autoSizeTextType="uniform"
+                    android:fontFamily="@font/outfit"
+                    android:fontFeatureSettings="lnum, tnum"
+                    android:fontVariationSettings="'wght' 300"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="6dp"
+                    android:textColor="#E8EEE9" />
+            </FrameLayout>
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/w_cd_big"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="2.6"
+            android:autoSizeMaxTextSize="160sp"
+            android:autoSizeMinTextSize="14sp"
+            android:autoSizeStepGranularity="1sp"
+            android:autoSizeTextType="uniform"
+            android:fontFamily="@font/outfit"
+            android:fontFeatureSettings="lnum, tnum"
+            android:fontVariationSettings="'wght' 300"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:letterSpacing="-0.02"
+            android:maxLines="1"
+            android:text="36"
+            android:textColor="#7DD69B"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/w_cd_big_label"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="0.5"
+            android:autoSizeMaxTextSize="18sp"
+            android:autoSizeMinTextSize="7sp"
+            android:autoSizeStepGranularity="1sp"
+            android:autoSizeTextType="uniform"
+            android:fontFamily="@font/outfit"
+            android:fontFeatureSettings="lnum, tnum"
+            android:fontVariationSettings="'wght' 400"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:letterSpacing="0.2"
+            android:maxLines="1"
+            android:textAllCaps="true"
+            android:text="Days to go"
+            android:textColor="#99E8EEE9"
+            android:visibility="gone" />
+    </LinearLayout>
+</FrameLayout>

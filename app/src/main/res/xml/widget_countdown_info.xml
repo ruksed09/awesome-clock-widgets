@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Resizable; every look is set in Versity's widget studio, which opens when the widget is placed. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:configure="com.versity.launcher.widget.WidgetConfigActivity"
+    android:description="@string/widget_countdown_desc"
+    android:initialLayout="@layout/widget_countdown"
+    android:previewLayout="@layout/widget_countdown"
+    android:minWidth="180dp"
+    android:minHeight="90dp"
+    android:minResizeWidth="60dp"
+    android:minResizeHeight="40dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen"
+    android:widgetFeatures="reconfigurable" />

@@ -1,11 +1,18 @@
 package com.versity.launcher.widget
 
-/** The four widget families offered in the widget studio and the system widget picker. */
-enum class WidgetType(val title: String, val description: String) {
+/**
+ * The widget families offered in the widget studio and the system widget picker. The last four are the
+ * collection: a live countdown, a radial app launcher, a circular app shortcut and a decorative badge.
+ */
+enum class WidgetType(val title: String, val description: String, val collection: Boolean = false) {
     DIGITAL("Digital clock", "One line, stacked or with an ornament"),
     CLOCK_DATE("Clock and date", "Time with the date, four layouts"),
     ANALOGUE("Analogue clock", "Seven dials, three hand styles"),
     DATE("Date and calendar", "Day card, date line or month"),
+    COUNTDOWN("Countdown", "Live days, hours, minutes and seconds", collection = true),
+    LAUNCHER("App launcher", "Five apps on one radial shape", collection = true),
+    SHORTCUT("App shortcut", "One app in layered rings", collection = true),
+    BADGE("Badge", "A scalloped badge with your logo", collection = true),
 }
 
 /** Layouts within a family. Stored by name, so new ones can be added without breaking saved widgets. */
@@ -27,6 +34,15 @@ enum class WidgetStyle(val type: WidgetType, val label: String) {
     DAY_CARD(WidgetType.DATE, "Day card"),
     DATE_LINE(WidgetType.DATE, "Date line"),
     MONTH(WidgetType.DATE, "Month"),
+    COUNTDOWN_CARD(WidgetType.COUNTDOWN, "Card"),
+    COUNTDOWN_BIG(WidgetType.COUNTDOWN, "Big days"),
+    RADIAL_FLOWER(WidgetType.LAUNCHER, "Flower"),
+    RADIAL_RINGS(WidgetType.LAUNCHER, "Rings"),
+    SHORTCUT_RINGS(WidgetType.SHORTCUT, "Rings"),
+    SHORTCUT_HALO(WidgetType.SHORTCUT, "Halo"),
+    BADGE_SCALLOP(WidgetType.BADGE, "Scalloped"),
+    BADGE_PETALS(WidgetType.BADGE, "Petals"),
+    BADGE_CIRCLE(WidgetType.BADGE, "Circle"),
     ;
 
     companion object {
@@ -86,6 +102,24 @@ data class WidgetSpec(
     val seconds: Boolean = false,
     val hands: HandStyle = HandStyle.CLASSIC,
     val faceShape: FaceShape = FaceShape.ROUND,
+    /** Countdown: the event's name, shown in capitals. */
+    val title: String = "",
+    /** Countdown: the moment counted down to, in epoch milliseconds; 0 means the next New Year. */
+    val target: Long = 0L,
+    /** Launcher (five: top, left, centre, right, bottom), shortcut and badge: apps by [com.versity.launcher.data.AppEntry.key]. */
+    val apps: List<String> = emptyList(),
+    /** Badge: the user's own logo or picture (a private copy), shown instead of an app icon. */
+    val image: String? = null,
+    /** Icon size as a share of its circle, 40..100. */
+    val iconScale: Int = 64,
+    /** Space between the launcher's circles, 0..30 (hundredths of a circle). */
+    val spacing: Int = 6,
+    /** Ring thickness, 1..10 (hundredths of a circle). */
+    val ringWidth: Int = 4,
+    /** Number of concentric rings, 1..3. */
+    val rings: Int = 2,
+    /** A soft shadow under rings and shapes. */
+    val shadow: Boolean = true,
 ) {
     val type: WidgetType get() = style.type
 
@@ -97,7 +131,11 @@ data class WidgetSpec(
     val showsTime: Boolean get() = type == WidgetType.DIGITAL || type == WidgetType.CLOCK_DATE
     /** Analogue dials with numerals use a typeface; the others are marks only. */
     val hasNumerals: Boolean get() = style == WidgetStyle.DIAL_QUARTERS || style == WidgetStyle.DIAL_NUMBERS || style == WidgetStyle.DIAL_ROMAN
-    val usesTypeface: Boolean get() = type != WidgetType.ANALOGUE || hasNumerals
+    val usesTypeface: Boolean get() = when (type) {
+        WidgetType.DIGITAL, WidgetType.CLOCK_DATE, WidgetType.DATE -> true
+        WidgetType.ANALOGUE -> hasNumerals
+        else -> false
+    }
 
     /** Width over height that suits this style; used for previews and widgets on Versity's home screen. */
     val aspect: Float get() = when (style) {
@@ -112,6 +150,10 @@ data class WidgetSpec(
         WidgetStyle.DAY_CARD -> 1f
         WidgetStyle.DATE_LINE -> 2.6f
         WidgetStyle.MONTH -> 1.05f
+        WidgetStyle.COUNTDOWN_CARD -> 2f
+        WidgetStyle.COUNTDOWN_BIG -> 1.5f
+        WidgetStyle.RADIAL_FLOWER, WidgetStyle.RADIAL_RINGS, WidgetStyle.SHORTCUT_RINGS, WidgetStyle.SHORTCUT_HALO,
+        WidgetStyle.BADGE_SCALLOP, WidgetStyle.BADGE_PETALS, WidgetStyle.BADGE_CIRCLE -> 1f
     }
 
     /** Compact one-line form for storage: key=value pairs. Unknown or missing keys fall back to defaults. */
@@ -121,10 +163,20 @@ data class WidgetSpec(
         "opacity" to opacity.toString(), "corner" to corner.name, "border" to border.toString(), "align" to align.name,
         "time" to timeFormat.name, "date" to dateStyle.name, "face" to dialFace.toString(), "seconds" to seconds.toString(),
         "hands" to hands.name, "faceShape" to faceShape.name,
+        "title" to esc(title), "target" to target.toString(), "apps" to apps.joinToString(",") { esc(it) },
+        "image" to esc(image.orEmpty()), "iconScale" to iconScale.toString(), "spacing" to spacing.toString(),
+        "ringWidth" to ringWidth.toString(), "rings" to rings.toString(), "shadow" to shadow.toString(),
     ).joinToString("|") { (k, v) -> "$k=$v" }
 
     companion object {
         private fun hex(argb: Long) = "%08X".format(argb and 0xFFFFFFFFL)
+        /** Free text and URIs are percent-encoded so "|", "=" and "," never break the format. */
+        private fun esc(s: String) = java.net.URLEncoder.encode(s, "UTF-8")
+        private fun unesc(s: String) = runCatching { java.net.URLDecoder.decode(s, "UTF-8") }.getOrDefault("")
+
+        /** Emerald on near-black, as in the collection's reference design. */
+        const val EMERALD = 0xFF7DD69BL
+        const val DEEP_GREEN = 0xFF0E1913L
 
         /** Defaults per family. Digital and Clock and date match the original Celestial widgets. */
         fun default(type: WidgetType): WidgetSpec = when (type) {
@@ -137,6 +189,23 @@ data class WidgetSpec(
             WidgetType.DATE -> WidgetSpec(
                 WidgetStyle.DAY_CARD, "inter_thin", 0xFFFFFFFF, 0xFFFF6B5A,
                 background = WidgetBackground.GLASS, opacity = 18, border = true,
+            )
+            WidgetType.COUNTDOWN -> WidgetSpec(
+                WidgetStyle.COUNTDOWN_CARD, textColor = 0xFFE8EEE9, accentColor = EMERALD,
+                background = WidgetBackground.SOLID, backgroundColor = DEEP_GREEN, opacity = 94, corner = WidgetCorner.LARGE,
+                border = true, title = "New Year",
+            )
+            WidgetType.LAUNCHER -> WidgetSpec(
+                WidgetStyle.RADIAL_FLOWER, textColor = 0xFF3A3A40, accentColor = 0xFF1C1C20,
+                backgroundColor = 0xFF060607, opacity = 100, iconScale = 42, ringWidth = 5, rings = 2,
+            )
+            WidgetType.SHORTCUT -> WidgetSpec(
+                WidgetStyle.SHORTCUT_RINGS, textColor = 0xFF3A3A40, accentColor = 0xFF1C1C20,
+                backgroundColor = 0xFF060607, opacity = 100, iconScale = 48, ringWidth = 5, rings = 2,
+            )
+            WidgetType.BADGE -> WidgetSpec(
+                WidgetStyle.BADGE_SCALLOP, textColor = 0xFFFFFFFF, accentColor = 0xFF3A5546,
+                backgroundColor = 0xFF263D31, opacity = 100, iconScale = 62, ringWidth = 3, rings = 1,
             )
         }
 
@@ -166,6 +235,15 @@ data class WidgetSpec(
                 seconds = bool("seconds", d.seconds),
                 hands = m["hands"]?.let { n -> HandStyle.entries.firstOrNull { it.name == n } } ?: d.hands,
                 faceShape = m["faceShape"]?.let { n -> FaceShape.entries.firstOrNull { it.name == n } } ?: d.faceShape,
+                title = m["title"]?.let(::unesc) ?: d.title,
+                target = m["target"]?.toLongOrNull() ?: d.target,
+                apps = m["apps"]?.split(",")?.map(::unesc)?.filter { it.isNotBlank() } ?: d.apps,
+                image = m["image"]?.let(::unesc)?.ifBlank { null } ?: d.image,
+                iconScale = m["iconScale"]?.toIntOrNull()?.coerceIn(40, 100) ?: d.iconScale,
+                spacing = m["spacing"]?.toIntOrNull()?.coerceIn(0, 30) ?: d.spacing,
+                ringWidth = m["ringWidth"]?.toIntOrNull()?.coerceIn(1, 10) ?: d.ringWidth,
+                rings = m["rings"]?.toIntOrNull()?.coerceIn(1, 3) ?: d.rings,
+                shadow = bool("shadow", d.shadow),
             )
         }
     }

@@ -24,6 +24,7 @@ abstract class VersityWidgetProvider(val type: WidgetType) : AppWidgetProvider()
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
         ids.forEach { Widgets.update(context, manager, it, type) }
         if (type == WidgetType.DATE) Widgets.scheduleMidnight(context)
+        if (type == WidgetType.COUNTDOWN) Widgets.scheduleCountdown(context)
     }
 
     /** Resizing changes the cell, which the month view is drawn for. */
@@ -38,7 +39,8 @@ abstract class VersityWidgetProvider(val type: WidgetType) : AppWidgetProvider()
 
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
-            Intent.ACTION_TIME_CHANGED, Intent.ACTION_TIMEZONE_CHANGED, Intent.ACTION_LOCALE_CHANGED, Widgets.ACTION_REFRESH ->
+            Intent.ACTION_TIME_CHANGED, Intent.ACTION_TIMEZONE_CHANGED, Intent.ACTION_LOCALE_CHANGED, Intent.ACTION_BOOT_COMPLETED,
+            Widgets.ACTION_REFRESH ->
                 Widgets.updateAll(context, type)
             else -> super.onReceive(context, intent)
         }
@@ -49,6 +51,10 @@ class CelestialTimeWidget : VersityWidgetProvider(WidgetType.DIGITAL)
 class CelestialTimeDateWidget : VersityWidgetProvider(WidgetType.CLOCK_DATE)
 class AnalogueClockWidget : VersityWidgetProvider(WidgetType.ANALOGUE)
 class DateWidget : VersityWidgetProvider(WidgetType.DATE)
+class CountdownWidget : VersityWidgetProvider(WidgetType.COUNTDOWN)
+class RadialLauncherWidget : VersityWidgetProvider(WidgetType.LAUNCHER)
+class AppShortcutWidget : VersityWidgetProvider(WidgetType.SHORTCUT)
+class BadgeWidget : VersityWidgetProvider(WidgetType.BADGE)
 
 /** Receives the home screen's confirmation of a pinned widget and gives it the look designed in the studio. */
 class WidgetPinnedReceiver : BroadcastReceiver() {
@@ -72,6 +78,10 @@ object Widgets {
         WidgetType.CLOCK_DATE -> CelestialTimeDateWidget::class.java
         WidgetType.ANALOGUE -> AnalogueClockWidget::class.java
         WidgetType.DATE -> DateWidget::class.java
+        WidgetType.COUNTDOWN -> CountdownWidget::class.java
+        WidgetType.LAUNCHER -> RadialLauncherWidget::class.java
+        WidgetType.SHORTCUT -> AppShortcutWidget::class.java
+        WidgetType.BADGE -> BadgeWidget::class.java
     }
 
     fun typeOf(provider: ComponentName?): WidgetType? =
@@ -91,7 +101,8 @@ object Widgets {
         val w = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH)?.takeIf { it > 0 } ?: 180
         val h = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT)?.takeIf { it > 0 } ?: 180
         val views = WidgetRenderer.build(context, spec, w, h)
-        views.setOnClickPendingIntent(com.versity.launcher.R.id.w_root, clickIntent(context, type))
+        // Collection widgets attach their own taps (apps); the clocks open the clock or calendar app.
+        if (!type.collection) views.setOnClickPendingIntent(com.versity.launcher.R.id.w_root, clickIntent(context, type))
         manager.updateAppWidget(id, views)
     }
 
@@ -99,6 +110,7 @@ object Widgets {
         val manager = AppWidgetManager.getInstance(context) ?: return
         manager.getAppWidgetIds(ComponentName(context, providerClass(type))).forEach { update(context, manager, it, type) }
         if (type == WidgetType.DATE) scheduleMidnight(context)
+        if (type == WidgetType.COUNTDOWN) scheduleCountdown(context)
     }
 
     /** Time widgets open the clock app; date widgets open the calendar. */
@@ -127,6 +139,24 @@ object Widgets {
             PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= 31) PendingIntent.FLAG_MUTABLE else 0),
         )
         return runCatching { manager.requestPinAppWidget(ComponentName(context, providerClass(spec.type)), null, callback) }.getOrDefault(false)
+    }
+
+    /**
+     * Redraws countdowns when the soonest one's day count drops (its timer reaches zero). The timer keeps
+     * itself current in between; a short window is plenty, and needs no exact-alarm permission.
+     */
+    fun scheduleCountdown(context: Context) {
+        val alarms = context.getSystemService(AlarmManager::class.java) ?: return
+        val manager = AppWidgetManager.getInstance(context) ?: return
+        val store = WidgetStore(context)
+        val now = System.currentTimeMillis()
+        val next = manager.getAppWidgetIds(ComponentName(context, CountdownWidget::class.java))
+            .map { Collection.state(Collection.target(store.system(it, WidgetType.COUNTDOWN), now = now), now) }
+            .filterNot { it.done }
+            .minOfOrNull { it.timerEnd } ?: return
+        val intent = Intent(context, CountdownWidget::class.java).setAction(ACTION_REFRESH)
+        val pending = PendingIntent.getBroadcast(context, 2, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        runCatching { alarms.setWindow(AlarmManager.RTC, next + 500, 30_000L, pending) }
     }
 
     /** Redraws the month view just after midnight. Inexact is fine: a minute or two late is invisible. */

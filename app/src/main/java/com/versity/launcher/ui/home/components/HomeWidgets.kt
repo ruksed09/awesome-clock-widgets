@@ -47,17 +47,19 @@ fun WidgetView(
     modifier: Modifier = Modifier,
     clickable: Boolean = false,
     onLongPress: (() -> Unit)? = null,
+    /** Rebuilds the widget when it changes; countdowns pass the minute so their day count stays right. */
+    refresh: Any? = null,
 ) {
     val longPress by rememberUpdatedState(onLongPress)
     BoxWithConstraints(modifier) {
         val w = maxWidth.value.roundToInt().coerceAtLeast(1)
         val h = maxHeight.value.roundToInt().coerceAtLeast(1)
-        key(spec, w, h) {
+        key(spec, w, h, refresh) {
             AndroidView(
                 factory = { ctx ->
                     FrameLayout(ctx).apply {
-                        val views = WidgetRenderer.build(ctx, spec, w, h)
-                        if (clickable) views.setOnClickPendingIntent(com.versity.launcher.R.id.w_root, Widgets.clickIntent(ctx, spec.type))
+                        val views = WidgetRenderer.build(ctx, spec, w, h, interactive = clickable)
+                        if (clickable && !spec.type.collection) views.setOnClickPendingIntent(com.versity.launcher.R.id.w_root, Widgets.clickIntent(ctx, spec.type))
                         val child = runCatching { views.apply(ctx, this) }.getOrNull()
                         if (child != null) {
                             if (longPress != null) {
@@ -87,7 +89,12 @@ fun newWidgetPlacement(spec: WidgetSpec, y: Float = 0.56f): ClockPlacement =
  * Long-pressing one offers to edit, move or remove it.
  */
 @Composable
-fun HomeWidgetsLayer(widgets: List<HomeWidget>, modifier: Modifier = Modifier, onLongPress: (HomeWidget) -> Unit = {}) {
+fun HomeWidgetsLayer(
+    widgets: List<HomeWidget>,
+    modifier: Modifier = Modifier,
+    minute: Any? = null,
+    onLongPress: (HomeWidget) -> Unit = {},
+) {
     if (widgets.isEmpty()) return
     val context = LocalContext.current
     val store = remember(context) { WidgetStore(context) }
@@ -102,6 +109,7 @@ fun HomeWidgetsLayer(widgets: List<HomeWidget>, modifier: Modifier = Modifier, o
                         Modifier.testTag(TestTags.homeWidget(w.id)).semantics { contentDescription = spec.type.title },
                         clickable = true,
                         onLongPress = { onLongPress(w) },
+                        refresh = minute.takeIf { spec.type == WidgetType.COUNTDOWN },
                     )
                 }
             }

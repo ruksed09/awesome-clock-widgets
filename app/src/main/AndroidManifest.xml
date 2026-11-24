@@ -7,6 +7,8 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Updates: hand a verified APK to Android's installer (the user still confirms every install). -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Countdown widgets: reset their timers after a restart (the timer counts from boot time). -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!-- Android 11+ package visibility for the app drawer: launchable activities only. -->
     <queries>
@@ -94,6 +96,56 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_date_info" />
+        </receiver>
+
+        <!-- The collection: countdown, radial launcher, app shortcut and badge. -->
+        <receiver
+            android:name=".widget.CountdownWidget"
+            android:exported="false"
+            android:label="@string/widget_countdown_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <!-- Countdown timers count from the clock's boot time, so they are reset after a restart or clock change. -->
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_countdown_info" />
+        </receiver>
+        <receiver
+            android:name=".widget.RadialLauncherWidget"
+            android:exported="false"
+            android:label="@string/widget_launcher_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_launcher_info" />
+        </receiver>
+        <receiver
+            android:name=".widget.AppShortcutWidget"
+            android:exported="false"
+            android:label="@string/widget_shortcut_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_shortcut_info" />
+        </receiver>
+        <receiver
+            android:name=".widget.BadgeWidget"
+            android:exported="false"
+            android:label="@string/widget_badge_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_badge_info" />
         </receiver>
 
         <!-- Shares a downloaded, verified update APK with Android's installer. -->

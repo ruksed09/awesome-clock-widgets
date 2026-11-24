@@ -246,6 +246,8 @@ private fun Controls(spec: WidgetSpec, set: (WidgetSpec) -> Unit, message: Strin
         }
     }
 
+    if (spec.type.collection) CollectionControls(spec, set)
+
     if (spec.usesTypeface) {
         StudioCard(title = "Typeface") {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -257,7 +259,7 @@ private fun Controls(spec: WidgetSpec, set: (WidgetSpec) -> Unit, message: Strin
         }
     }
 
-    StudioCard(title = "Colour") {
+    if (!spec.type.collection) StudioCard(title = "Colour") {
         StudioLabel(if (spec.type == WidgetType.ANALOGUE) "Dial and hands" else "Text")
         Swatches(InkSwatches, spec.textColor) { set(spec.copy(textColor = it)) }
         StudioLabel(
@@ -282,7 +284,8 @@ private fun Controls(spec: WidgetSpec, set: (WidgetSpec) -> Unit, message: Strin
         }
     }
 
-    StudioCard(title = "Background") {
+    // The image widgets draw their own shapes; the countdown uses the usual panel.
+    if (!spec.type.collection || spec.type == WidgetType.COUNTDOWN) StudioCard(title = "Background") {
         StudioSegmented(
             WidgetBackground.entries, spec.background, { it.label }, { set(spec.copy(background = it)) },
             tag = { TestTags.widgetBackground(it.name) },
@@ -319,8 +322,8 @@ private fun Controls(spec: WidgetSpec, set: (WidgetSpec) -> Unit, message: Strin
         ToggleLine("Hairline edge", spec.border) { set(spec.copy(border = it)) }
     }
 
-    val showsAlign = spec.type != WidgetType.ANALOGUE
-    if (showsAlign || spec.showsTime || spec.showsDate || spec.usesOrnament || spec.type == WidgetType.ANALOGUE) {
+    val showsAlign = spec.type != WidgetType.ANALOGUE && !spec.type.collection
+    if (!spec.type.collection && (showsAlign || spec.showsTime || spec.showsDate || spec.usesOrnament || spec.type == WidgetType.ANALOGUE)) {
         StudioCard(title = if (spec.type == WidgetType.ANALOGUE) "Hands" else "Text and time") {
             if (showsAlign) {
                 StudioLabel("Alignment")
@@ -432,7 +435,7 @@ fun Swatches(options: List<Long>, selected: Long, onPick: (Long) -> Unit) {
 }
 
 @Composable
-private fun HueSlider(current: Long, onPick: (Long) -> Unit) {
+internal fun HueSlider(current: Long, onPick: (Long) -> Unit) {
     val hsv = FloatArray(3).also { AndroidColor.colorToHSV(current.toInt(), it) }
     val spectrum = remember { Brush.horizontalGradient((0..6).map { Color(AndroidColor.HSVToColor(floatArrayOf(it * 60f, 0.55f, 1f))) }) }
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -449,7 +452,7 @@ private fun HueSlider(current: Long, onPick: (Long) -> Unit) {
 }
 
 @Composable
-private fun ToggleLine(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+internal fun ToggleLine(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()

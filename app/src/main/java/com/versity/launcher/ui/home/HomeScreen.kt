@@ -161,7 +161,7 @@ fun HomeContent(state: HomeUiState, modifier: Modifier = Modifier, actions: Home
         ) {
             // Side-by-side only in landscape; a tablet held upright keeps one centred column.
             val wide = maxWidth >= WideBreakpoint && maxWidth > maxHeight
-            HomeWidgetsLayer(state.settings.homeWidgets) { widgetMenu = it }
+            HomeWidgetsLayer(state.settings.homeWidgets, minute = state.now) { widgetMenu = it }
             when (state.settings.layout) {
                 HomeLayout.MINIMAL -> MinimalLayout(state, current, wide)
                 HomeLayout.ORBIT -> CentredLayout(state, current, wide)

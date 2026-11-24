@@ -87,10 +87,13 @@ internal fun WidgetsPage(
                 else -> 2
             }
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                WidgetType.entries.chunked(columns).forEach { row ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        row.forEach { type -> TypeCard(type, Modifier.weight(1f)) { onCreate(type) } }
-                        repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
+                listOf("Clocks" to false, "Collection" to true).forEach { (label, collection) ->
+                    com.versity.launcher.ui.studio.StudioLabel(label, Modifier.padding(start = 4.dp, top = 4.dp))
+                    WidgetType.entries.filter { it.collection == collection }.chunked(columns).forEach { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            row.forEach { type -> TypeCard(type, Modifier.weight(1f)) { onCreate(type) } }
+                            repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
+                        }
                     }
                 }
             }
