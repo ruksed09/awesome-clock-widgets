@@ -89,12 +89,12 @@ fun ScaledScreen(
 @Composable
 fun HomePreview(settings: LauncherSettings, width: Dp, modifier: Modifier = Modifier, border: Color? = null, onClick: (() -> Unit)? = null) =
     ScaledScreen(width, modifier, border, onClick) {
-        HomeContent(HomeUiState(settings = settings, batteryPercent = 72, now = PreviewNow, isDefaultLauncher = true))
+        HomeContent(HomeUiState(settings = settings, now = PreviewNow, isDefaultLauncher = true))
     }
 
 /** The lock screen as it would look with [settings] (its lock theme applied, if any). */
 @Composable
 fun LockPreview(settings: LauncherSettings, width: Dp, modifier: Modifier = Modifier, border: Color? = null, onClick: (() -> Unit)? = null) =
     ScaledScreen(width, modifier, border, onClick) {
-        LockStyleContent(HomeUiState(settings = settings.lockLook(), batteryPercent = 72, now = PreviewNow, isDefaultLauncher = true), onUnlock = {})
+        LockStyleContent(HomeUiState(settings = settings.lockLook(), now = PreviewNow, isDefaultLauncher = true), onUnlock = {})
     }

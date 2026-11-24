@@ -33,9 +33,6 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
             layout = prefs[LAYOUT]
                 ?.let { name -> HomeLayout.entries.firstOrNull { it.name == name } }
                 ?: d.layout,
-            backdrop = prefs[BACKDROP]
-                ?.let { name -> Backdrop.entries.firstOrNull { it.name == name } }
-                ?: d.backdrop,
             favourites = prefs[FAVOURITES]?.split(SEPARATOR)?.filter { it.isNotBlank() } ?: d.favourites,
             lockStyleEnabled = prefs[LOCK_STYLE] ?: d.lockStyleEnabled,
             ornament = prefs[ORNAMENT]
@@ -52,6 +49,7 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
                 ?: d.iconStyle,
             clockPlacement = ClockPlacement.decode(prefs[CLOCK_PLACEMENT]),
             lockClockPlacement = ClockPlacement.decode(prefs[LOCK_CLOCK_PLACEMENT]),
+            homeWidgets = HomeWidget.decodeAll(prefs[HOME_WIDGETS]),
             uiMode = prefs[UI_MODE]
                 ?.let { name -> UiMode.entries.firstOrNull { it.name == name } }
                 ?: d.uiMode,
@@ -81,8 +79,6 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         set(FAVOURITES, clean.takeIf { it.isNotEmpty() }?.joinToString(SEPARATOR))
     }
 
-    suspend fun setBackdrop(backdrop: Backdrop) = set(BACKDROP, backdrop.name)
-
     suspend fun setLockStyleEnabled(enabled: Boolean) = set(LOCK_STYLE, enabled)
 
     suspend fun setOrnament(ornament: Ornament) = set(ORNAMENT, ornament.name)
@@ -106,10 +102,23 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         }
     }
 
+    /** Widgets on Versity's home screen; an empty list removes the key. */
+    suspend fun setHomeWidgets(widgets: List<HomeWidget>) =
+        set(HOME_WIDGETS, widgets.takeIf { it.isNotEmpty() }?.let(HomeWidget::encodeAll))
+
+    /** The clock and every home widget in one write, so the arrange editor's Done is atomic. */
+    suspend fun setArrangement(home: ClockPlacement?, lock: ClockPlacement?, widgets: List<HomeWidget>) {
+        dataStore.edit { p ->
+            if (home == null) p.remove(CLOCK_PLACEMENT) else p[CLOCK_PLACEMENT] = home.clamped().encode()
+            if (lock == null) p.remove(LOCK_CLOCK_PLACEMENT) else p[LOCK_CLOCK_PLACEMENT] = lock.clamped().encode()
+            if (widgets.isEmpty()) p.remove(HOME_WIDGETS) else p[HOME_WIDGETS] = HomeWidget.encodeAll(widgets)
+        }
+    }
+
     /**
      * One transaction: look only. Favourites, lock-style, drawer and icon choices are left alone.
      * The current wallpaper is kept unless [replaceWallpaper] asks for the theme's own (its bundled
-     * wallpaper, or none so its gradient and backdrop show).
+     * wallpaper, or none so its gradient shows).
      */
     suspend fun applyTheme(theme: ThemeBundle, replaceWallpaper: Boolean = false) {
         dataStore.edit { p ->
@@ -119,7 +128,6 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
             p[CLOCK_STYLE] = theme.clockStyle.name
             p[DIM_PERCENT] = theme.dimPercent.coerceIn(LauncherSettings.MIN_DIM, LauncherSettings.MAX_DIM)
             p[LAYOUT] = theme.layout.name
-            p[BACKDROP] = theme.backdrop.name
             if (theme.accentArgb == null) p.remove(ACCENT_ARGB) else p[ACCENT_ARGB] = theme.accentArgb
             theme.ornament?.let { p[ORNAMENT] = it.name }
             theme.ornamentDate?.let { p[ORNAMENT_DATE] = it }
@@ -143,7 +151,6 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         val PALETTE_ID = stringPreferencesKey("palette_id")
         val ACCENT_ARGB = longPreferencesKey("accent_argb")
         val LAYOUT = stringPreferencesKey("layout")
-        val BACKDROP = stringPreferencesKey("backdrop")
         val FAVOURITES = stringPreferencesKey("favourites")
         val LOCK_STYLE = booleanPreferencesKey("lock_style_enabled")
         val ORNAMENT = stringPreferencesKey("ornament")
@@ -155,5 +162,6 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         val UI_MODE = stringPreferencesKey("ui_mode")
         val CLOCK_PLACEMENT = stringPreferencesKey("clock_placement")
         val LOCK_CLOCK_PLACEMENT = stringPreferencesKey("lock_clock_placement")
+        val HOME_WIDGETS = stringPreferencesKey("home_widgets")
     }
 }

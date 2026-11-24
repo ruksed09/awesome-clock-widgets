@@ -4,7 +4,6 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
-import com.versity.launcher.data.Backdrop
 import com.versity.launcher.data.HomeLayout
 import com.versity.launcher.data.LauncherSettings
 import com.versity.launcher.ui.home.HomeUiState
@@ -43,25 +42,9 @@ class LockStyleUiTest {
     private fun lock(settings: LauncherSettings) =
         rule.setContent { LockStyleContent(HomeUiState(settings = settings), onUnlock = {}) }
 
-    @Test fun lockDrawsTheBackdropOfItsSettings() {
-        lock(LauncherSettings.DEFAULT.copy(backdrop = Backdrop.STARS))
-        rule.onNodeWithTag(TestTags.backdrop("STARS")).assertExists()
-    }
-
-    @Test fun anotherBackdropReplacesIt() {
-        lock(LauncherSettings.DEFAULT.copy(backdrop = Backdrop.RINGS))
-        rule.onNodeWithTag(TestTags.backdrop("RINGS")).assertExists()
-        rule.onNodeWithTag(TestTags.backdrop("STARS")).assertDoesNotExist()
-    }
-
-    @Test fun minimalLockHidesTheBatteryBar() {
-        lock(LauncherSettings.DEFAULT.copy(layout = HomeLayout.MINIMAL))
+    @Test fun bothLayoutsShowTheClockAndHandle() {
+        lock(LauncherSettings.DEFAULT.copy(layout = HomeLayout.ORBIT, clockStyle = com.versity.launcher.data.ClockStyle.ORNAMENT))
         rule.onNodeWithTag(TestTags.LOCK_HANDLE).assertExists()
-        rule.onNodeWithTag(TestTags.BATTERY_BAR).assertDoesNotExist()
-    }
-
-    @Test fun classicAndOrbitLockShowTheBatteryBar() {
-        lock(LauncherSettings.DEFAULT.copy(layout = HomeLayout.CLASSIC))
-        rule.onNodeWithTag(TestTags.BATTERY_BAR).assertExists()
+        rule.onNodeWithTag(TestTags.CLOCK_ORNAMENT).assertExists()
     }
 }

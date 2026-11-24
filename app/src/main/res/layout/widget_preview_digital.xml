@@ -1,44 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  Transparent so the wallpaper shows through. TextClock keeps time by itself, so the app never wakes
-  the phone. Rows share the height by weight and the text auto-sizes, so the widget fills any cell size,
-  from a small phone cell to a large tablet widget.
--->
+<!-- Digital clock preview: serif time over a starlit line. Shown in the phone's widget picker and until Versity draws the widget's own look. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/widget_root"
+    android:id="@+id/w_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:gravity="center"
     android:orientation="vertical"
-    android:padding="6dp">
-
+    android:padding="10dp">
     <TextClock
-        android:id="@+id/widget_time"
+        android:id="@+id/w_time"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="3"
-        android:autoSizeMaxTextSize="160sp"
-        android:autoSizeMinTextSize="18sp"
-        android:autoSizeStepGranularity="2sp"
+        android:autoSizeMaxTextSize="200sp"
+        android:autoSizeMinTextSize="14sp"
+        android:autoSizeStepGranularity="1sp"
         android:autoSizeTextType="uniform"
         android:fontFamily="@font/cormorant"
         android:fontFeatureSettings="lnum"
+        android:fontVariationSettings="'wght' 300"
         android:format12Hour="h:mm"
         android:format24Hour="HH:mm"
         android:gravity="center"
         android:includeFontPadding="false"
-        android:letterSpacing="0.03"
+        android:letterSpacing="0.02"
         android:maxLines="1"
-        android:shadowColor="#66DCEBFA"
-        android:shadowRadius="14"
         android:textColor="#DCEBFA" />
-
     <ImageView
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="0.55"
+        android:layout_weight="0.5"
         android:importantForAccessibility="no"
         android:scaleType="fitCenter"
-        android:src="@drawable/widget_divider_celestial" />
-
+        android:src="@drawable/wo_star"
+        android:tint="#DCEBFA" />
 </LinearLayout>

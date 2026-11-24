@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Analogue face disc. White, tinted to the face colour and opacity at runtime. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <size android:width="400dp" android:height="400dp" />
+    <solid android:color="#FFFFFFFF" />
+</shape>

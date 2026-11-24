@@ -1,12 +1,13 @@
 # Versity Launcher
 
-Native Android home-screen launcher (Kotlin, Jetpack Compose, Material 3). Package `com.versity.launcher`.
-Built from `launcher_plan.md`. Customisable: wallpaper + dim, clock style + font, colour palette + accent.
+Native Android home-screen launcher and theme studio (Kotlin, Jetpack Compose, Material 3). Package
+`com.versity.launcher`. Themes, wallpapers, big clock faces you can place anywhere, a themed lock screen
+and fully customisable home-screen widgets.
 
 ## Build and test
 
 ```bash
-./gradlew testDebugUnitTest        # JVM unit tests (settings, presets, apps, battery, manifest)
+./gradlew testDebugUnitTest        # JVM and Robolectric tests (settings, presets, widgets, apps, manifest)
 ./gradlew assembleDebug            # app/build/outputs/apk/debug/app-debug.apk
 ./gradlew connectedDebugAndroidTest  # Compose UI tests; needs a device or emulator
 ```
@@ -25,6 +26,22 @@ python3 tools/wallpapers/generate.py out/ --land     # landscape 2400x1500 for t
 
 Copy the `.webp` files into `app/src/main/res/drawable-nodpi/` and list new ones in `domain/Wallpapers.kt`.
 
+## Widgets
+
+Four families (digital clock, clock and date, analogue, date and calendar), each designed in the
+widget studio: layout, typeface, colours, glass or solid panel, opacity, corners, alignment and
+time and date formats. `widget/WidgetRenderer.kt` turns a `WidgetSpec` into RemoteViews used by
+the phone's home screen, the studio preview and Versity's own home screen alike. TextClock and
+AnalogClock keep time, so no widget needs update alarms (the month view is redrawn after midnight).
+
+Widgets cannot change their typeface at runtime, so each typeface has its own generated layout:
+
+```bash
+python3 tools/widgets/generate_layouts.py   # writes app/src/main/res/layout/widget_text_*.xml
+```
+
+Keep its list in step with `WidgetTypefaces` in `widget/WidgetSpec.kt`; a unit test checks both.
+
 ## Releases
 
 Bump `versionName` in `app/build.gradle.kts`, add `release/notes-v<version>.md` and push. The Release
@@ -34,15 +51,20 @@ secrets are set, otherwise the signed `release/versity-<version>.apk` committed 
 ## Using it
 
 Install, press Home, and choose Versity as the home app (or tap "Set" on the in-app banner).
-Open Customise with long-press on the home screen or the sliders icon at the top right.
+Open Customise with long-press on the home screen or the sliders icon at the top right; swipe up for
+all apps. Opened from its icon while another launcher is the home app, Versity is a theme and widget
+studio for that launcher.
 
 ## Limits
 
-- A third-party launcher cannot replace the system lock screen; the lock-style look is on the home screen only.
-- No notification access in v1, so the notification chip shows a dash instead of a count.
-- No background services; battery and time only update while the home screen is visible.
+- A launcher cannot replace the system lock screen. The themed lock screen shows over it while the phone
+  is locked and unlocking still goes through the phone's PIN, fingerprint or face.
+- Versity's own home screen holds Versity's widgets, not other apps' widgets.
+- On Android 8 to 11, widget text stays centred and analogue widgets are white (those options need
+  Android 12's RemoteViews methods).
 
 ## Credits
 
-Fonts (SIL Open Font License 1.1, texts in `app/src/main/assets/licenses/`): Inter, Space Grotesk, Outfit, Roboto Mono.
+Fonts (SIL Open Font License 1.1, texts in `app/src/main/assets/licenses/`): Inter, Space Grotesk, Outfit,
+Roboto Mono, Cormorant Garamond, Playfair Display, Josefin Sans and Syne.
 All icons and the launcher mark are drawn in code or as vector drawables in this repo.

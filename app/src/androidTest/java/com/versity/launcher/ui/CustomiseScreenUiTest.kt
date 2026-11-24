@@ -44,13 +44,16 @@ class CustomiseScreenUiTest {
         rule.onNodeWithTag(TestTags.nav(CustomisePage.WALLPAPERS.name)).performClick()
         rule.onNodeWithTag(TestTags.wallpaper("moon_tide")).assertExists()
         rule.onNodeWithContentDescription("Back").performClick()
-        rule.onNodeWithTag(TestTags.nav(CustomisePage.MORE.name)).performClick()
-        rule.onNodeWithTag(TestTags.nav(CustomisePage.STYLE.name)).performClick()
+        rule.onNodeWithTag(TestTags.nav(CustomisePage.WIDGETS.name)).performClick()
+        rule.onNodeWithTag(TestTags.widgetType("DIGITAL")).assertExists()
+        rule.onNodeWithContentDescription("Back").performClick()
+        rule.onNodeWithTag(TestTags.nav(CustomisePage.SETTINGS.name)).performClick()
+        rule.onNodeWithTag(TestTags.nav(CustomisePage.COLOURS.name)).performClick()
         rule.onNodeWithTag(TestTags.PREVIEW_FAB).assertExists()
     }
 
     @Test fun selectingAPaletteUpdatesTheLiveLook() {
-        val settings = host(CustomisePage.STYLE)
+        val settings = host(CustomisePage.COLOURS)
         assertEquals(LauncherSettings.DEFAULT.paletteId, previewPalette())
         rule.onNodeWithTag(TestTags.palette("ocean")).performScrollTo().performClick()
         rule.waitForIdle()
@@ -59,7 +62,7 @@ class CustomiseScreenUiTest {
     }
 
     @Test fun resetAsksThenRestoresDefaults() {
-        val settings = host(CustomisePage.STYLE)
+        val settings = host(CustomisePage.COLOURS)
         rule.onNodeWithTag(TestTags.palette("ember")).performScrollTo().performClick()
         rule.onNodeWithContentDescription("Back").performClick()
         rule.onNodeWithTag(TestTags.RESET).performScrollTo().performClick()
@@ -71,7 +74,7 @@ class CustomiseScreenUiTest {
     @Test fun resetCanBeCancelled() {
         var resets = 0
         val actions = object : CustomiseActions { override fun onReset() { resets++ } }
-        rule.setContent { CustomiseContent(LauncherSettings.DEFAULT, actions, initialPage = CustomisePage.MORE) }
+        rule.setContent { CustomiseContent(LauncherSettings.DEFAULT, actions, initialPage = CustomisePage.SETTINGS) }
         rule.onNodeWithTag(TestTags.RESET).performScrollTo().performClick()
         rule.onNodeWithTag(TestTags.RESET_CANCEL).performClick()
         rule.waitForIdle()
@@ -115,12 +118,12 @@ class CustomiseScreenUiTest {
     @Test fun applyingAThemeToTheLockScreenOnlySendsThatChoice() {
         val actions = object : CustomiseActions { override fun onApplyTheme(request: ThemeApplyRequest) { lastTheme = request } }
         rule.setContent { CustomiseContent(LauncherSettings.DEFAULT, actions, initialPage = CustomisePage.THEMES) }
-        rule.onNodeWithTag(TestTags.theme("celestial")).performScrollTo().performClick()
+        rule.onNodeWithTag(TestTags.theme("moonrise")).performScrollTo().performClick()
         rule.onNodeWithTag(TestTags.applyTarget(ApplyTarget.LOCK.name)).performClick()
         rule.onNodeWithTag(TestTags.OPT_LOCK_WALLPAPER).performScrollTo().performClick()
         rule.onNodeWithTag(TestTags.APPLY_CONFIRM).performClick()
         rule.waitForIdle()
-        assertEquals("celestial", lastTheme?.theme?.id)
+        assertEquals("moonrise", lastTheme?.theme?.id)
         assertEquals(ApplyTarget.LOCK, lastTheme?.target)
         assertEquals(false, lastTheme?.setPhoneWallpaper)
         assertEquals(false, lastTheme?.setLockWallpaper)
@@ -159,17 +162,38 @@ class CustomiseScreenUiTest {
         assertEquals(UiMode.DARK, lastMode)
     }
 
-    @Test fun clockEditorSavesBothPlacementsOnDone() {
+    @Test fun arrangeEditorSavesEverythingOnDone() {
         var saves = 0
         val actions = object : CustomiseActions {
-            override fun onClockPlacement(home: com.versity.launcher.data.ClockPlacement?, lock: com.versity.launcher.data.ClockPlacement?) { saves++ }
+            override fun onArrange(
+                home: com.versity.launcher.data.ClockPlacement?,
+                lock: com.versity.launcher.data.ClockPlacement?,
+                widgets: List<com.versity.launcher.data.HomeWidget>,
+            ) { saves++ }
         }
-        rule.setContent { CustomiseContent(LauncherSettings.DEFAULT, actions, initialPage = CustomisePage.STYLE) }
+        rule.setContent { CustomiseContent(LauncherSettings.DEFAULT, actions, initialPage = CustomisePage.LAYOUT) }
         rule.onNodeWithTag(TestTags.EDIT_CLOCK).performScrollTo().performClick()
         rule.onNodeWithTag(TestTags.CLOCK_EDITOR).assertExists()
         rule.onNodeWithTag(TestTags.EDITOR_DONE).performClick()
         rule.waitForIdle()
         assertEquals(1, saves)
         rule.onNodeWithTag(TestTags.CLOCK_EDITOR).assertDoesNotExist()
+    }
+
+    @Test fun newWidgetGoesThroughTheStudio() {
+        var created: com.versity.launcher.widget.WidgetSpec? = null
+        val actions = object : CustomiseActions {
+            override fun onCreateWidget(spec: com.versity.launcher.widget.WidgetSpec): String? { created = spec; return null }
+        }
+        rule.setContent { CustomiseContent(LauncherSettings.DEFAULT, actions, initialPage = CustomisePage.WIDGETS) }
+        rule.onNodeWithTag(TestTags.widgetType("CLOCK_DATE")).performScrollTo().performClick()
+        rule.onNodeWithTag(TestTags.WIDGET_STUDIO).assertExists()
+        rule.onNodeWithTag(TestTags.widgetStyle("EDITORIAL")).performScrollTo().performClick()
+        rule.onNodeWithTag(TestTags.widgetFont("syne_bold")).performScrollTo().performClick()
+        rule.onNodeWithTag(TestTags.STUDIO_CONFIRM).performClick()
+        rule.waitForIdle()
+        assertEquals(com.versity.launcher.widget.WidgetStyle.EDITORIAL, created?.style)
+        assertEquals("syne_bold", created?.typeface)
+        rule.onNodeWithTag(TestTags.WIDGET_STUDIO).assertDoesNotExist()
     }
 }

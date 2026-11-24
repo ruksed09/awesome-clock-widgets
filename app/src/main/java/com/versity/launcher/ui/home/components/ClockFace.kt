@@ -34,9 +34,7 @@ fun ClockFace(settings: LauncherSettings, now: LocalDateTime, is24Hour: Boolean,
     val showDate = !settings.showsOwnDate
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         when (settings.clockStyle) {
-            ClockStyle.STACKED -> StackedClock(time, is24Hour, Modifier.fillMaxWidth(), sizeRange = 24f..260f, centered = true)
-            ClockStyle.SINGLE_LINE -> SingleLineClock(time, is24Hour, Modifier.fillMaxWidth(), sizeRange = 20f..220f, centered = true, widthFactor = 0.26f)
-            ClockStyle.ANALOGUE -> BigAnalogueClock(time, Modifier.fillMaxWidth(0.62f).let { it })
+            ClockStyle.ANALOGUE -> BigAnalogueClock(time, Modifier.fillMaxWidth(0.62f))
             ClockStyle.ORNAMENT -> OrnamentClock(
                 time, is24Hour, settings.ornament, Modifier.fillMaxWidth(),
                 date = now.toLocalDate().takeIf { settings.ornamentDate }, sizeRange = 24f..220f, widthFactor = 0.24f,

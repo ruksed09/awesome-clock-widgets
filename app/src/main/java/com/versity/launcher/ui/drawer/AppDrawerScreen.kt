@@ -133,7 +133,7 @@ private fun AppCell(
         }
         LauncherMenu(expanded = menu, onDismiss = { menu = false }) {
             LauncherMenuItem(
-                label = if (isFavourite) "Remove from home" else if (homeFull) "Home is full (8)" else "Add to home",
+                label = if (isFavourite) "Remove from dock" else if (homeFull) "Dock is full (8)" else "Add to dock",
                 enabled = isFavourite || !homeFull,
             ) { menu = false; onToggleFavourite(app) }
         }

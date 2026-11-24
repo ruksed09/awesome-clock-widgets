@@ -27,6 +27,12 @@ import com.versity.launcher.ui.settings.CustomiseActions
 import com.versity.launcher.ui.settings.CustomiseContent
 import com.versity.launcher.ui.settings.CustomisePage
 import com.versity.launcher.ui.theme.DrawerTheme
+import com.versity.launcher.data.ClockPlacement
+import com.versity.launcher.data.HomeWidget
+import com.versity.launcher.widget.WidgetSpec
+import com.versity.launcher.widget.WidgetStore
+import com.versity.launcher.widget.WidgetStyle
+import com.versity.launcher.widget.WidgetType
 import java.io.File
 import java.time.LocalDateTime
 import org.junit.Assume.assumeTrue
@@ -81,8 +87,8 @@ class ScreenshotHarness {
         host()
         for (t in ThemePresets.themes) {
             val s = LauncherSettings.DEFAULT.withTheme(t)
-            shoot("theme_${t.id}_home") { HomeContent(HomeUiState(settings = s, batteryPercent = 72, now = now)) }
-            shoot("theme_${t.id}_lock") { LockStyleContent(HomeUiState(settings = s, batteryPercent = 72, now = now), onUnlock = {}) }
+            shoot("theme_${t.id}_home") { HomeContent(HomeUiState(settings = s, now = now)) }
+            shoot("theme_${t.id}_lock") { LockStyleContent(HomeUiState(settings = s, now = now), onUnlock = {}) }
         }
     }
 
@@ -101,19 +107,48 @@ class ScreenshotHarness {
     @Test fun placedClocks() {
         host()
         val base = LauncherSettings.DEFAULT.withTheme(ThemePresets.theme("stage")!!)
-        shoot("placed_home") { HomeContent(HomeUiState(settings = base.copy(clockPlacement = com.versity.launcher.data.ClockPlacement(0.5f, 0.45f, 1.25f)), batteryPercent = 72, now = now)) }
+        shoot("placed_home") { HomeContent(HomeUiState(settings = base.copy(clockPlacement = com.versity.launcher.data.ClockPlacement(0.5f, 0.45f, 1.25f)), now = now)) }
         shoot("placed_lock") {
-            LockStyleContent(HomeUiState(settings = base.copy(lockClockPlacement = com.versity.launcher.data.ClockPlacement(0.3f, 0.72f, 0.7f)).lockLook(), batteryPercent = 72, now = now), onUnlock = {})
+            LockStyleContent(HomeUiState(settings = base.copy(lockClockPlacement = com.versity.launcher.data.ClockPlacement(0.3f, 0.72f, 0.7f)).lockLook(), now = now), onUnlock = {})
         }
     }
 
     @Test fun clockEditor() {
         val s = LauncherSettings.DEFAULT.withTheme(ThemePresets.theme("frost")!!).copy(uiMode = UiMode.DARK)
-        rule.setContent { CustomiseContent(s, object : CustomiseActions {}, initialPage = CustomisePage.STYLE) }
+        rule.setContent { CustomiseContent(s, object : CustomiseActions {}, initialPage = CustomisePage.LAYOUT) }
         rule.onNodeWithTag(TestTags.EDIT_CLOCK).performClick()
         rule.mainClock.advanceTimeBy(500)
         rule.waitForIdle()
         save("clock_editor")
+    }
+
+    @Test fun widgetStudios() {
+        for (mode in listOf(UiMode.LIGHT, UiMode.DARK)) {
+            for (type in WidgetType.entries) {
+                val s = LauncherSettings.DEFAULT.copy(uiMode = mode)
+                rule.activityRule.scenario.recreate()
+                rule.setContent { CustomiseContent(s, object : CustomiseActions {}, initialPage = CustomisePage.WIDGETS) }
+                rule.onNodeWithTag(TestTags.widgetType(type.name)).performClick()
+                rule.mainClock.advanceTimeBy(600)
+                rule.waitForIdle()
+                save("studio_${type.name.lowercase()}_${mode.name.lowercase()}")
+            }
+        }
+    }
+
+    @Test fun homeWithWidgets() {
+        val store = WidgetStore(rule.activity)
+        store.saveHome(1, WidgetSpec.default(WidgetType.CLOCK_DATE).copy(style = WidgetStyle.EDITORIAL, typeface = "inter_bold", accentColor = 0xFFFF8A70))
+        store.saveHome(2, WidgetSpec.default(WidgetType.ANALOGUE))
+        store.saveHome(3, WidgetSpec.default(WidgetType.DATE))
+        val widgets = listOf(
+            HomeWidget(1, ClockPlacement(0.5f, 0.3f, 1.4f)),
+            HomeWidget(2, ClockPlacement(0.28f, 0.6f, 0.72f)),
+            HomeWidget(3, ClockPlacement(0.72f, 0.6f, 0.72f)),
+        )
+        host()
+        val s = LauncherSettings.DEFAULT.withTheme(ThemePresets.theme("ink")!!).copy(homeWidgets = widgets, clockPlacement = ClockPlacement(0.5f, 0.06f, 0.5f))
+        shoot("home_widgets") { HomeContent(HomeUiState(settings = s, now = now)) }
     }
 
     @Test fun applySheetLight() = sheet(UiMode.LIGHT, CustomisePage.THEMES, TestTags.theme("moonrise"), "apply_sheet_light")
@@ -136,7 +171,7 @@ class ScreenshotHarness {
         val apps = listOf("Calculator", "Calendar", "Camera", "Chrome", "Clock", "Contacts", "Drive", "Files", "Gmail", "Maps", "Messages", "Music", "Photos", "Settings", "Weather", "YouTube")
             .map { AppEntry(it, "com.example.${it.lowercase()}", "Main") }
         val state = DrawerUiState(apps = apps, loading = false)
-        val themed = LauncherSettings.DEFAULT.withTheme(ThemePresets.theme("celestial")!!)
+        val themed = LauncherSettings.DEFAULT.withTheme(ThemePresets.theme("leviathan")!!)
         for (mode in listOf(UiMode.LIGHT, UiMode.DARK)) {
             val p = themed.copy(uiMode = mode)
             shoot("drawer_plain_${mode.name.lowercase()}") { DrawerTheme(p) { AppDrawerContent(state, {}, {}, settings = p) } }

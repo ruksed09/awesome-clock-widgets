@@ -1,6 +1,8 @@
 package com.versity.launcher.data
 
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
 import com.versity.launcher.domain.ThemeBundle
 import java.io.File
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -129,7 +131,7 @@ class SettingsRepositoryTest {
         repo.setWallpaperUri("content://w")
         repo.setFavourites(listOf("a/A#0"))
         repo.setLockStyleEnabled(true)
-        val theme = ThemeBundle("t", "T", "tag", "ocean", "outfit", ClockStyle.ANALOGUE, 55, 0xFF112233L, HomeLayout.MINIMAL, Backdrop.WAVES)
+        val theme = ThemeBundle("t", "T", "tag", "ocean", "outfit", ClockStyle.ANALOGUE, 55, 0xFF112233L, HomeLayout.MINIMAL)
         repo.applyTheme(theme)
         val s = repo.settings.first()
         assertEquals("ocean", s.paletteId)
@@ -138,7 +140,6 @@ class SettingsRepositoryTest {
         assertEquals(55, s.dimPercent)
         assertEquals(0xFF112233L, s.accentArgb)
         assertEquals(HomeLayout.MINIMAL, s.layout)
-        assertEquals(Backdrop.WAVES, s.backdrop)
         assertEquals("content://w", s.wallpaperUri)
         assertEquals(listOf("a/A#0"), s.favourites)
         assertEquals(true, s.lockStyleEnabled)
@@ -147,7 +148,7 @@ class SettingsRepositoryTest {
     @Test fun applyingAThemeWithoutAccentClearsTheOldAccent() = runTest {
         val repo = newRepo()
         repo.setAccentArgb(0xFF445566L)
-        repo.applyTheme(ThemeBundle("t", "T", "tag", "midnight", "inter", ClockStyle.STACKED, 30, null, HomeLayout.CLASSIC, Backdrop.NONE))
+        repo.applyTheme(ThemeBundle("t", "T", "tag", "midnight", "inter", ClockStyle.GIANT, 30, null, HomeLayout.ORBIT))
         assertNull(repo.settings.first().accentArgb)
     }
 
@@ -166,9 +167,9 @@ class SettingsRepositoryTest {
     @Test fun themeWithOrnamentSetsItAndThemeWithoutKeepsIt() = runTest {
         val repo = newRepo()
         repo.setOrnament(Ornament.MOON)
-        repo.applyTheme(ThemeBundle("t", "T", "tag", "midnight", "inter", ClockStyle.STACKED, 30, null, HomeLayout.CLASSIC, Backdrop.NONE))
+        repo.applyTheme(ThemeBundle("t", "T", "tag", "midnight", "inter", ClockStyle.GIANT, 30, null, HomeLayout.ORBIT))
         assertEquals(Ornament.MOON, repo.settings.first().ornament)
-        repo.applyTheme(ThemeBundle("c", "C", "tag", "abyss", "cormorant", ClockStyle.ORNAMENT, 20, null, HomeLayout.MINIMAL, Backdrop.STARS, Ornament.CORNERS))
+        repo.applyTheme(ThemeBundle("c", "C", "tag", "abyss", "cormorant", ClockStyle.ORNAMENT, 20, null, HomeLayout.MINIMAL, Ornament.CORNERS))
         assertEquals(Ornament.CORNERS, repo.settings.first().ornament)
     }
 
@@ -195,7 +196,7 @@ class SettingsRepositoryTest {
         repo.setDrawerStyle(DrawerStyle.PLAIN)
         repo.setIconStyle(IconStyle.ORIGINAL)
         repo.setLockThemeId("noir")
-        repo.applyTheme(ThemeBundle("t", "T", "tag", "ocean", "outfit", ClockStyle.ANALOGUE, 20, null, HomeLayout.CLASSIC, Backdrop.WAVES))
+        repo.applyTheme(ThemeBundle("t", "T", "tag", "ocean", "outfit", ClockStyle.ANALOGUE, 20, null, HomeLayout.ORBIT))
         val s = repo.settings.first()
         assertEquals(DrawerStyle.PLAIN, s.drawerStyle)
         assertEquals(IconStyle.ORIGINAL, s.iconStyle)
@@ -205,7 +206,7 @@ class SettingsRepositoryTest {
     @Test fun applyThemeCanSwapThePhotoForTheThemeBackground() = runTest {
         val repo = newRepo()
         repo.setWallpaperUri("content://w")
-        val t = ThemeBundle("t", "T", "tag", "ocean", "outfit", ClockStyle.ANALOGUE, 20, null, HomeLayout.CLASSIC, Backdrop.WAVES)
+        val t = ThemeBundle("t", "T", "tag", "ocean", "outfit", ClockStyle.ANALOGUE, 20, null, HomeLayout.ORBIT)
         repo.applyTheme(t)
         assertEquals("content://w", repo.settings.first().wallpaperUri)
         repo.applyTheme(t, replaceWallpaper = true)
@@ -233,7 +234,7 @@ class SettingsRepositoryTest {
     @Test fun themeWithAWallpaperBringsItWhenReplacing() = runTest {
         val repo = newRepo()
         repo.setWallpaperUri("content://photo")
-        val t = ThemeBundle("t", "T", "tag", "violet", "inter", ClockStyle.STACKED, 10, null, HomeLayout.MINIMAL, Backdrop.NONE, wallpaperId = "silk")
+        val t = ThemeBundle("t", "T", "tag", "violet", "inter", ClockStyle.GIANT, 10, null, HomeLayout.MINIMAL, wallpaperId = "silk")
         repo.applyTheme(t)
         assertEquals("content://photo", repo.settings.first().wallpaperUri)
         repo.applyTheme(t, replaceWallpaper = true)
@@ -259,12 +260,37 @@ class SettingsRepositoryTest {
         repo.settings.first().let { assertNull(it.clockPlacement); assertEquals(lock, it.lockClockPlacement) }
     }
 
-    @Test fun backdropRoundTripsForEveryBackdrop() = runTest {
+    @Test fun homeWidgetsRoundTripInOrderAndClear() = runTest {
         val repo = newRepo()
-        assertEquals(LauncherSettings.DEFAULT.backdrop, repo.settings.first().backdrop)
-        for (b in Backdrop.entries) {
-            repo.setBackdrop(b)
-            assertEquals(b, repo.settings.first().backdrop)
+        assertEquals(emptyList<HomeWidget>(), repo.settings.first().homeWidgets)
+        val widgets = listOf(HomeWidget(3, ClockPlacement(0.5f, 0.6f, 1.4f)), HomeWidget(1, ClockPlacement(0.3f, 0.4f, 0.8f)))
+        repo.setHomeWidgets(widgets)
+        assertEquals(widgets, repo.settings.first().homeWidgets)
+        repo.setHomeWidgets(emptyList())
+        assertEquals(emptyList<HomeWidget>(), repo.settings.first().homeWidgets)
+    }
+
+    @Test fun arrangementSavesClocksAndWidgetsTogether() = runTest {
+        val repo = newRepo()
+        val home = ClockPlacement(0.5f, 0.3f, 1.1f)
+        val widgets = listOf(HomeWidget(7, ClockPlacement(0.5f, 0.7f, 1f)))
+        repo.setArrangement(home, null, widgets)
+        repo.settings.first().let {
+            assertEquals(home, it.clockPlacement)
+            assertNull(it.lockClockPlacement)
+            assertEquals(widgets, it.homeWidgets)
         }
+    }
+
+    @Test fun removedStylesAndLayoutsFallBackToDefaults() = runTest {
+        val store = PreferenceDataStoreFactory.create(scope = backgroundScope) { File(tmp.root, "old.preferences_pb") }
+        store.edit {
+            it[stringPreferencesKey("clock_style")] = "STACKED"
+            it[stringPreferencesKey("layout")] = "CLASSIC"
+            it[stringPreferencesKey("backdrop")] = "RAIN"
+        }
+        val s = SettingsRepository(store).settings.first()
+        assertEquals(LauncherSettings.DEFAULT.clockStyle, s.clockStyle)
+        assertEquals(LauncherSettings.DEFAULT.layout, s.layout)
     }
 }

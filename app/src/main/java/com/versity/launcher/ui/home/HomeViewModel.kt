@@ -18,7 +18,6 @@ import kotlinx.coroutines.launch
 class HomeViewModel(
     settings: SettingsRepository,
     private val apps: AppsRepository,
-    battery: Flow<Int?>,
     clock: Flow<LocalDateTime>,
     isDefaultLauncher: Flow<Boolean>,
     is24Hour: () -> Boolean,
@@ -28,10 +27,10 @@ class HomeViewModel(
     private val installed = MutableStateFlow<List<AppEntry>>(emptyList())
 
     private val base: Flow<HomeUiState> = combine(
-        settings.settings, battery, clock, isDefaultLauncher, bannerDismissed,
-    ) { s, b, now, isDefault, dismissed ->
+        settings.settings, clock, isDefaultLauncher, bannerDismissed,
+    ) { s, now, isDefault, dismissed ->
         HomeUiState(
-            settings = s, batteryPercent = b, now = now, isDefaultLauncher = isDefault,
+            settings = s, now = now, isDefaultLauncher = isDefault,
             is24Hour = is24Hour(), defaultBannerDismissed = dismissed, loaded = true,
         )
     }

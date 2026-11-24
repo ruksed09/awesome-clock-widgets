@@ -1,15 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Resizable from a small 2x1 cell to a full-width tablet widget; the layout auto-sizes its text. -->
+<!-- Resizable from a small cell to a large tablet widget; every look is set in Versity's widget studio. -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
-    android:description="@string/widget_celestial_time_date_desc"
-    android:initialLayout="@layout/widget_celestial_time_date"
-    android:previewLayout="@layout/widget_celestial_time_date"
+    android:configure="com.versity.launcher.widget.WidgetConfigActivity"
+    android:description="@string/widget_clock_date_desc"
+    android:initialLayout="@layout/widget_preview_clock_date"
+    android:previewLayout="@layout/widget_preview_clock_date"
     android:minWidth="140dp"
     android:minHeight="90dp"
-    android:minResizeWidth="100dp"
-    android:minResizeHeight="50dp"
+    android:minResizeWidth="60dp"
+    android:minResizeHeight="40dp"
     android:targetCellWidth="4"
     android:targetCellHeight="2"
     android:resizeMode="horizontal|vertical"
     android:updatePeriodMillis="0"
-    android:widgetCategory="home_screen|keyguard" />
+    android:widgetCategory="home_screen|keyguard"
+    android:widgetFeatures="reconfigurable" />

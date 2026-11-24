@@ -40,7 +40,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.versity.launcher.data.AppEntry
-import com.versity.launcher.data.Backdrop
+import com.versity.launcher.data.HomeWidget
+import com.versity.launcher.data.ClockPlacement
 import com.versity.launcher.data.ClockStyle
 import com.versity.launcher.system.LockWallpaper
 import androidx.compose.runtime.remember
@@ -48,7 +49,6 @@ import com.versity.launcher.data.HomeLayout
 import com.versity.launcher.domain.ThemeBundle
 import com.versity.launcher.system.AppLauncher
 import com.versity.launcher.system.DefaultLauncherCheck
-import com.versity.launcher.system.batteryPercentFlow
 import com.versity.launcher.system.minuteTicker
 import com.versity.launcher.ui.drawer.AppDrawerContent
 import com.versity.launcher.ui.drawer.DrawerViewModel
@@ -73,7 +73,14 @@ import com.versity.launcher.domain.withTheme
 import com.versity.launcher.data.DrawerStyle
 import com.versity.launcher.data.IconStyle
 import com.versity.launcher.data.Ornament
-import com.versity.launcher.widget.ClockWidgetKind
+import com.versity.launcher.widget.WidgetSpec
+import com.versity.launcher.widget.WidgetStore
+import com.versity.launcher.widget.Widgets
+import com.versity.launcher.ui.home.HomeActions
+import com.versity.launcher.ui.home.components.HomeWidgetLooks
+import com.versity.launcher.ui.home.components.newWidgetPlacement
+import com.versity.launcher.ui.settings.CustomiseRequest
+import com.versity.launcher.ui.settings.StudioTarget
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -139,7 +146,6 @@ class MainActivity : ComponentActivity() {
                     HomeViewModel(
                         settings = container.settingsRepository,
                         apps = container.appsRepository,
-                        battery = batteryPercentFlow(applicationContext),
                         clock = minuteTicker(),
                         isDefaultLauncher = container.isDefaultLauncher,
                         is24Hour = { DateFormat.is24HourFormat(applicationContext) },
@@ -170,6 +176,7 @@ class MainActivity : ComponentActivity() {
             var previewingLock by remember { mutableStateOf(false) }
             var lockWallpaperStatus by remember { mutableStateOf<String?>(null) }
             var widgetStatus by remember { mutableStateOf<String?>(null) }
+            var customiseRequest by remember { mutableStateOf<CustomiseRequest?>(null) }
             // The themed lock screen follows the phone's real lock state; there is no separate in-app lock.
             val lockUi = home.loaded && home.settings.lockStyleEnabled && systemLocked
             // Only the lock screen may ever be drawn over the keyguard. Everything else stays behind the phone's lock.
@@ -225,16 +232,26 @@ class MainActivity : ComponentActivity() {
                 )
                 screen == Screen.HOME -> HomeContent(
                     state = home,
-                    onOpenDrawer = { drawerVm.refresh(); screen = Screen.DRAWER },
-                    onOpenCustomise = { screen = Screen.CUSTOMISE },
-                    onOpenPhone = { startSafely(Intent(Intent.ACTION_DIAL)) },
-                    onSetDefault = {
-                        try { requestHome.launch(DefaultLauncherCheck.requestIntent(context)) }
-                        catch (_: ActivityNotFoundException) { startSafely(Intent(Settings.ACTION_SETTINGS)) }
+                    actions = remember {
+                        object : HomeActions() {
+                            override fun openDrawer() { drawerVm.refresh(); screen = Screen.DRAWER }
+                            override fun openCustomise() { screen = Screen.CUSTOMISE }
+                            override fun openPhone() { startSafely(Intent(Intent.ACTION_DIAL)) }
+                            override fun setDefault() {
+                                try { requestHome.launch(DefaultLauncherCheck.requestIntent(context)) }
+                                catch (_: ActivityNotFoundException) { startSafely(Intent(Settings.ACTION_SETTINGS)) }
+                            }
+                            override fun dismissBanner() { homeVm.dismissBanner() }
+                            override fun launchApp(app: AppEntry) { appLauncher.launch(app) }
+                            override fun removeFavourite(app: AppEntry) { customiseVm.setFavourites(home.settings.favourites - app.key) }
+                            override fun editWidget(widget: HomeWidget) {
+                                customiseRequest = CustomiseRequest.Studio(StudioTarget.Home(widget.id))
+                                screen = Screen.CUSTOMISE
+                            }
+                            override fun arrange() { customiseRequest = CustomiseRequest.Arrange(); screen = Screen.CUSTOMISE }
+                            override fun removeWidget(widget: HomeWidget) { removeHomeWidget(widget.id, home.settings, customiseVm) }
+                        }
                     },
-                    onDismissBanner = homeVm::dismissBanner,
-                    onLaunchApp = { app -> appLauncher.launch(app) },
-                    onRemoveFavourite = { app -> customiseVm.setFavourites(home.settings.favourites - app.key) },
                 )
                 screen == Screen.DRAWER -> {
                     val drawer by drawerVm.state.collectAsStateWithLifecycle()
@@ -253,6 +270,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 else -> {
+                    val homeSettings = { home.settings }
                     val actions = object : CustomiseActions {
                         override fun onPickWallpaper() {
                             picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
@@ -277,13 +295,28 @@ class MainActivity : ComponentActivity() {
                         override fun onDrawerStyle(style: DrawerStyle) { customiseVm.setDrawerStyle(style) }
                         override fun onIconStyle(style: IconStyle) { customiseVm.setIconStyle(style) }
                         override fun onUiMode(mode: com.versity.launcher.data.UiMode) { customiseVm.setUiMode(mode) }
-                        override fun onClockPlacement(home: com.versity.launcher.data.ClockPlacement?, lock: com.versity.launcher.data.ClockPlacement?) {
-                            customiseVm.setClockPlacements(home, lock)
+                        override fun onArrange(home: ClockPlacement?, lock: ClockPlacement?, widgets: List<HomeWidget>) {
+                            val kept = widgets.map { it.id }.toSet()
+                            val store = WidgetStore(context)
+                            homeSettings().homeWidgets.filterNot { it.id in kept }.forEach { store.removeHome(it.id) }
+                            customiseVm.setArrangement(home, lock, widgets)
                         }
-                        override fun onAddWidget(kind: ClockWidgetKind) { widgetStatus = pinWidget(kind) }
+                        override fun onCreateWidget(spec: WidgetSpec): String? = createWidget(spec, homeSettings(), customiseVm)
+                        override fun onSaveWidget(target: StudioTarget, spec: WidgetSpec) {
+                            val store = WidgetStore(context)
+                            when (target) {
+                                is StudioTarget.System -> {
+                                    store.saveSystem(target.id, spec)
+                                    Widgets.update(context, AppWidgetManager.getInstance(context), target.id, target.type)
+                                }
+                                is StudioTarget.Home -> { store.saveHome(target.id, spec); HomeWidgetLooks.changed() }
+                                is StudioTarget.New -> Unit
+                            }
+                            Toast.makeText(context, "Widget saved", Toast.LENGTH_SHORT).show()
+                        }
+                        override fun onRemoveHomeWidget(id: Int) { removeHomeWidget(id, homeSettings(), customiseVm) }
                         override fun onLayout(layout: HomeLayout) { customiseVm.setLayout(layout) }
                         override fun onLockStyle(enabled: Boolean) { customiseVm.setLockStyle(enabled) }
-                        override fun onBackdrop(backdrop: Backdrop) { customiseVm.setBackdrop(backdrop) }
                         override fun onOrnament(ornament: Ornament) { customiseVm.setOrnament(ornament) }
                         override fun onOrnamentDate(show: Boolean) { customiseVm.setOrnamentDate(show) }
                         override fun onPreviewLock() { previewingLock = true; screen = Screen.HOME }
@@ -295,13 +328,20 @@ class MainActivity : ComponentActivity() {
                                 else "Could not apply: ${result.exceptionOrNull()?.message ?: "unknown error"}"
                             }
                         }
-                        override fun onReset() { customiseVm.reset() }
+                        override fun onReset() {
+                            val store = WidgetStore(context)
+                            homeSettings().homeWidgets.forEach { store.removeHome(it.id) }
+                            customiseVm.reset()
+                        }
                     }
                     CustomiseContent(
                         home.settings, actions,
                         onBack = { if (openedAsApp && !home.isDefaultLauncher) finish() else screen = Screen.HOME },
                         lockWallpaperStatus = lockWallpaperStatus, widgetStatus = widgetStatus,
                         isDefaultLauncher = home.isDefaultLauncher,
+                        request = customiseRequest,
+                        onRequestHandled = { customiseRequest = null },
+                        versionName = versionName(),
                     )
                 }
             }
@@ -420,18 +460,34 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** Asks the current home app to place a widget. Returns a message to show when that is not possible. */
-    private fun pinWidget(kind: ClockWidgetKind): String {
-        val manager = AppWidgetManager.getInstance(this)
-        val provider = ComponentName(this, kind.provider)
-        val asked = manager.isRequestPinAppWidgetSupported && runCatching { manager.requestPinAppWidget(provider, null, null) }.getOrDefault(false)
-        return when {
-            asked -> "Your home screen will ask where to put the widget."
-            DefaultLauncherCheck.isDefault(this) ->
-                "Versity can't hold widgets yet. With another home app, long-press its home screen, choose Widgets, then find Versity."
-            else -> "Your home screen app can't add widgets from here. Long-press an empty spot on it, choose Widgets, then find Versity."
+    /**
+     * Places a new widget. With Versity as the home app it goes on Versity's own home screen; otherwise
+     * the current home app is asked to place it. Returns a message when neither is possible.
+     */
+    private fun createWidget(spec: WidgetSpec, settings: LauncherSettings, customiseVm: CustomiseViewModel): String? {
+        if (DefaultLauncherCheck.isDefault(this)) {
+            val store = WidgetStore(this)
+            val id = store.nextHomeId()
+            store.saveHome(id, spec)
+            val y = listOf(0.52f, 0.68f, 0.38f)[settings.homeWidgets.size % 3]
+            customiseVm.setHomeWidgets(settings.homeWidgets + HomeWidget(id, newWidgetPlacement(spec, y)))
+            Toast.makeText(this, "Added to your home screen. Long-press it to edit, move or remove it.", Toast.LENGTH_LONG).show()
+            return null
         }
+        if (Widgets.requestPin(this, spec)) {
+            Toast.makeText(this, "Your home screen will ask where to put the widget.", Toast.LENGTH_LONG).show()
+            return null
+        }
+        return "Your home screen app can't add widgets from here. Long-press an empty spot on it, choose Widgets, then find Versity: the studio opens with these choices."
     }
+
+    private fun removeHomeWidget(id: Int, settings: LauncherSettings, customiseVm: CustomiseViewModel) {
+        WidgetStore(this).removeHome(id)
+        customiseVm.setHomeWidgets(settings.homeWidgets.filterNot { it.id == id })
+    }
+
+    private fun versionName(): String =
+        runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull().orEmpty()
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)

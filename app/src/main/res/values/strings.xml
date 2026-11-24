@@ -1,7 +1,12 @@
 <resources>
     <string name="app_name">Versity</string>
-    <string name="widget_celestial_time_label">Celestial time</string>
-    <string name="widget_celestial_time_desc">Serif time with a starlit line</string>
-    <string name="widget_celestial_time_date_label">Celestial time and date</string>
-    <string name="widget_celestial_time_date_desc">Serif time, starlit line and the date</string>
+    <string name="widget_digital_label">Digital clock</string>
+    <string name="widget_digital_desc">Time on its own: one line, stacked, or over an ornament</string>
+    <string name="widget_clock_date_label">Clock and date</string>
+    <string name="widget_clock_date_desc">Time with the date, in four layouts</string>
+    <string name="widget_analogue_label">Analogue clock</string>
+    <string name="widget_analogue_desc">A dial with three faces and optional seconds</string>
+    <string name="widget_date_label">Date and calendar</string>
+    <string name="widget_date_desc">A day card, a date line or the month at a glance</string>
+    <string name="widget_studio_title">Widget studio</string>
 </resources>

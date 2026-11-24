@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ornament: fading line broken by a small crescent. White, tinted at runtime. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="240dp"
+    android:height="20dp"
+    android:viewportWidth="240"
+    android:viewportHeight="20">
+    <path android:pathData="M0,9.5h104v1h-104z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="0" android:startY="10" android:endX="104" android:endY="10"
+                android:startColor="#00FFFFFF" android:endColor="#BFFFFFFF" />
+        </aapt:attr>
+    </path>
+    <path android:pathData="M134,9.5h106v1h-106z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="134" android:startY="10" android:endX="240" android:endY="10"
+                android:startColor="#BFFFFFFF" android:endColor="#00FFFFFF" />
+        </aapt:attr>
+    </path>
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M122,2.25 A8,8 0 1,0 122,17.75 A9,9 0 0,1 122,2.25 Z" />
+</vector>

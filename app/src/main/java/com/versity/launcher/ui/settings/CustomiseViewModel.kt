@@ -16,7 +16,6 @@ class CustomiseViewModel(private val repo: SettingsRepository) : ViewModel() {
     fun setFont(id: String) = viewModelScope.launch { repo.setFontId(id) }
     fun setPalette(id: String) = viewModelScope.launch { repo.setPaletteId(id) }
     fun setAccent(argb: Long?) = viewModelScope.launch { repo.setAccentArgb(argb) }
-    fun setBackdrop(backdrop: com.versity.launcher.data.Backdrop) = viewModelScope.launch { repo.setBackdrop(backdrop) }
     fun setLayout(layout: HomeLayout) = viewModelScope.launch { repo.setLayout(layout) }
     fun setOrnament(o: com.versity.launcher.data.Ornament) = viewModelScope.launch { repo.setOrnament(o) }
     fun setOrnamentDate(show: Boolean) = viewModelScope.launch { repo.setOrnamentDate(show) }
@@ -31,5 +30,11 @@ class CustomiseViewModel(private val repo: SettingsRepository) : ViewModel() {
         viewModelScope.launch { repo.setClockPlacements(home, lock) }
     fun setUiMode(mode: com.versity.launcher.data.UiMode) = viewModelScope.launch { repo.setUiMode(mode) }
     fun setIconStyle(style: com.versity.launcher.data.IconStyle) = viewModelScope.launch { repo.setIconStyle(style) }
+    fun setHomeWidgets(widgets: List<com.versity.launcher.data.HomeWidget>) = viewModelScope.launch { repo.setHomeWidgets(widgets) }
+    fun setArrangement(
+        home: com.versity.launcher.data.ClockPlacement?,
+        lock: com.versity.launcher.data.ClockPlacement?,
+        widgets: List<com.versity.launcher.data.HomeWidget>,
+    ) = viewModelScope.launch { repo.setArrangement(home, lock, widgets) }
     fun reset() = viewModelScope.launch { repo.reset() }
 }

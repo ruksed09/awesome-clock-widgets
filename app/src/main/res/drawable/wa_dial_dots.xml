@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Analogue dial: twelve dots, larger at the quarters. White, tinted at runtime on Android 12 and newer. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="400dp"
+    android:height="400dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
+    <path android:fillColor="#FFFFFFFF" android:pathData="M100.00,7.00 m-3.4,0 a3.4,3.4 0,1 1,6.8,0 a3.4,3.4 0,1 1,-6.8,0" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M146.50,19.46 m-2.1,0 a2.1,2.1 0,1 1,4.2,0 a2.1,2.1 0,1 1,-4.2,0" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M180.54,53.50 m-2.1,0 a2.1,2.1 0,1 1,4.2,0 a2.1,2.1 0,1 1,-4.2,0" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M193.00,100.00 m-3.4,0 a3.4,3.4 0,1 1,6.8,0 a3.4,3.4 0,1 1,-6.8,0" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M180.54,146.50 m-2.1,0 a2.1,2.1 0,1 1,4.2,0 a2.1,2.1 0,1 1,-4.2,0" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M146.50,180.54 m-2.1,0 a2.1,2.1 0,1 1,4.2,0 a2.1,2.1 0,1 1,-4.2,0" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M100.00,193.00 m-3.4,0 a3.4,3.4 0,1 1,6.8,0 a3.4,3.4 0,1 1,-6.8,0" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M53.50,180.54 m-2.1,0 a2.1,2.1 0,1 1,4.2,0 a2.1,2.1 0,1 1,-4.2,0" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M19.46,146.50 m-2.1,0 a2.1,2.1 0,1 1,4.2,0 a2.1,2.1 0,1 1,-4.2,0" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M7.00,100.00 m-3.4,0 a3.4,3.4 0,1 1,6.8,0 a3.4,3.4 0,1 1,-6.8,0" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M19.46,53.50 m-2.1,0 a2.1,2.1 0,1 1,4.2,0 a2.1,2.1 0,1 1,-4.2,0" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M53.50,19.46 m-2.1,0 a2.1,2.1 0,1 1,4.2,0 a2.1,2.1 0,1 1,-4.2,0" />
+</vector>

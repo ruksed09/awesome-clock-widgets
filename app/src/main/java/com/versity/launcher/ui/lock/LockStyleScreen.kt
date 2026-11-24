@@ -38,17 +38,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.versity.launcher.ui.TestTags
 import com.versity.launcher.data.HomeLayout
-import com.versity.launcher.ui.home.ClockBlock
 import com.versity.launcher.ui.home.HomeBackground
-import com.versity.launcher.ui.home.HomeDateFormat
-import com.versity.launcher.ui.home.components.BatteryBar
-import com.versity.launcher.ui.home.components.CenteredClock
 import com.versity.launcher.ui.home.components.PlacedClock
+import com.versity.launcher.ui.home.components.CentredClockBlock
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.versity.launcher.ui.home.components.showsOwnDate
-import com.versity.launcher.ui.home.components.DateRing
 import com.versity.launcher.ui.home.HomeUiState
-import com.versity.launcher.ui.home.components.NotificationPill
-import com.versity.launcher.ui.home.components.OrbitHeader
 import com.versity.launcher.ui.theme.AppTheme
 import com.versity.launcher.ui.theme.LauncherTheme
 import com.versity.launcher.ui.theme.animationsEnabled
@@ -110,41 +105,17 @@ fun LockStyleContent(state: HomeUiState, onUnlock: () -> Unit, modifier: Modifie
                 .padding(horizontal = 24.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(Modifier.height(24.dp))
             when (state.settings.layout) {
-                // Orbit: centred date and clock, widget row, chip.
+                // Centered: date and clock in the middle of the screen.
                 HomeLayout.ORBIT -> {
-                    OrbitHeader(state.now, state.is24Hour, state.settings, state.batteryPercent)
+                    Spacer(Modifier.weight(0.8f))
+                    CentredClockBlock(state.now, state.is24Hour, state.settings)
                     Spacer(Modifier.weight(1f))
-                    NotificationPill()
-                    Spacer(Modifier.height(32.dp))
                 }
-                // Classic: left-aligned clock and date, chip, then battery and date ring above the handle.
-                HomeLayout.CLASSIC -> {
-                    Column(Modifier.fillMaxWidth()) { ClockBlock(state) }
-                    Spacer(Modifier.height(16.dp))
-                    Box(Modifier.fillMaxWidth()) { NotificationPill() }
-                    Spacer(Modifier.weight(1f))
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        BatteryBar(state.batteryPercent, Modifier.weight(1f))
-                        Spacer(Modifier.width(24.dp))
-                        DateRing(state.now.toLocalDate(), Modifier.size(76.dp))
-                    }
-                    Spacer(Modifier.height(32.dp))
-                }
-                // Minimal: just the date, a centred clock and the handle.
+                // Minimal: date and clock in the upper third.
                 HomeLayout.MINIMAL -> {
-                    Spacer(Modifier.weight(0.6f))
-                    if (state.settings.clockPlacement == null && !state.settings.showsOwnDate) {
-                        Text(
-                            state.now.format(HomeDateFormat),
-                            color = colors.onSurface.copy(alpha = 0.85f),
-                            fontFamily = LauncherTheme.font,
-                            fontSize = 16.sp,
-                        )
-                        Spacer(Modifier.height(4.dp))
-                    }
-                    if (state.settings.clockPlacement == null) CenteredClock(state.settings, state.now, state.is24Hour)
+                    Spacer(Modifier.weight(0.35f))
+                    CentredClockBlock(state.now, state.is24Hour, state.settings)
                     Spacer(Modifier.weight(1f))
                 }
             }
@@ -158,10 +129,10 @@ fun LockStyleContent(state: HomeUiState, onUnlock: () -> Unit, modifier: Modifie
 private fun LockHandle() {
     val colors = LauncherTheme.colors
     Column(Modifier.testTag(TestTags.LOCK_HANDLE), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.width(40.dp).height(2.dp).background(colors.onSurface.copy(alpha = 0.6f)))
+        Box(Modifier.width(36.dp).height(4.dp).background(colors.onSurface.copy(alpha = 0.55f), RoundedCornerShape(2.dp)))
         Text(
-            "Slide up to unlock",
-            color = colors.muted,
+            "Swipe up to unlock",
+            color = colors.onSurface.copy(alpha = 0.7f),
             fontFamily = LauncherTheme.font,
             fontSize = 12.sp,
             modifier = Modifier.padding(top = 10.dp, bottom = 12.dp),

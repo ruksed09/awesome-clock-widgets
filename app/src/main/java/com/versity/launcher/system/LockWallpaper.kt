@@ -19,7 +19,6 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.core.net.toUri
 import com.versity.launcher.data.LauncherSettings
 import com.versity.launcher.domain.ThemePresets
-import com.versity.launcher.ui.backdrop.drawBackdrop
 import com.versity.launcher.ui.home.decodeDownsampled
 import com.versity.launcher.ui.theme.resolveColors
 import com.versity.launcher.util.centerCrop
@@ -27,7 +26,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Renders the current look (gradient, wallpaper, dim, backdrop) to a bitmap and sets it as the system
+ * Renders the current look (gradient, wallpaper and dim) to a bitmap and sets it as the system
  * lock-screen wallpaper. No text is drawn into it, so it never shows a stale clock. The phone's own clock
  * and unlock screen stay on top; some ColorOS versions or Theme Store themes may override it.
  */
@@ -76,7 +75,6 @@ object LockWallpaper {
                 drawImage(photo, srcOffset = IntOffset(c.left, c.top), srcSize = IntSize(c.width, c.height), dstSize = IntSize(w, h))
             }
             drawRect(Color.Black.copy(alpha = dim))
-            drawBackdrop(settings.backdrop, palette, colors.accent)
         }
         return image.asAndroidBitmap()
     }

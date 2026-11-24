@@ -1,7 +1,11 @@
 package com.versity.launcher.data
 
-/** The last six are the big-clock family: large faces that fill the width. */
-enum class ClockStyle { STACKED, SINGLE_LINE, ANALOGUE, ORNAMENT, GIANT, OUTLINE, NEON, EXTRUDED, SEGMENT, FLIP, STAGE, GLASS }
+/**
+ * Clock faces for the home and lock screens. ANALOGUE and ORNAMENT are the classic faces; the rest are
+ * the big-clock family: large faces that fill the width. Stored by name, so removed styles fall back
+ * to the default.
+ */
+enum class ClockStyle { ANALOGUE, ORNAMENT, GIANT, OUTLINE, NEON, EXTRUDED, SEGMENT, FLIP, STAGE, GLASS }
 
 /**
  * Decoration drawn with the ORNAMENT clock style.
@@ -9,9 +13,6 @@ enum class ClockStyle { STACKED, SINGLE_LINE, ANALOGUE, ORNAMENT, GIANT, OUTLINE
  * MOON: fading line with a crescent. CORNERS: thin corner marks framing the time.
  */
 enum class Ornament { CELESTIAL, UNDERLINE, MOON, CORNERS }
-
-/** The decorative drawing behind everything: home, lock-style screen, drawer, previews and the exported lock wallpaper. */
-enum class Backdrop { NONE, RINGS, HORIZON, WAVES, STARS, AURORA, DUNES, PEAKS, ECLIPSE, BOKEH, GRID, ARCS, RAIN }
 
 /** PLAIN: neutral drawer that follows the system light/dark mode and font. THEMED: drawer uses the theme. */
 enum class DrawerStyle { PLAIN, THEMED }
@@ -22,8 +23,8 @@ enum class UiMode { SYSTEM, LIGHT, DARK }
 /** ORIGINAL: app icons exactly as the apps ship them. THEMED: icons tinted to the theme's accent. */
 enum class IconStyle { ORIGINAL, THEMED }
 
-/** CLASSIC: clock, widgets, dock. MINIMAL: clock, favourites, dock. ORBIT (shown as "Centered"): centred date and clock, widget row. */
-enum class HomeLayout { CLASSIC, MINIMAL, ORBIT }
+/** MINIMAL: clock near the top. ORBIT (shown as "Centered"): date and clock in the middle of the screen. */
+enum class HomeLayout { MINIMAL, ORBIT }
 
 /**
  * Where the user placed the clock: centre point as fractions of the screen (0..1) and a size factor
@@ -42,6 +43,23 @@ data class ClockPlacement(val x: Float, val y: Float, val scale: Float) {
     }
 }
 
+/**
+ * A widget placed on Versity's own home screen. Its look lives in the widget store under [id]; here is only
+ * where it sits: centre point as fractions of the screen and a size factor (1 = the default width).
+ */
+data class HomeWidget(val id: Int, val placement: ClockPlacement) {
+    fun encode() = "$id:${placement.encode()}"
+
+    companion object {
+        fun decode(s: String): HomeWidget? {
+            val (id, rest) = s.split(":", limit = 2).takeIf { it.size == 2 } ?: return null
+            return HomeWidget(id.toIntOrNull() ?: return null, ClockPlacement.decode(rest) ?: return null)
+        }
+        fun decodeAll(s: String?): List<HomeWidget> = s?.split(";")?.mapNotNull { decode(it) } ?: emptyList()
+        fun encodeAll(list: List<HomeWidget>): String = list.joinToString(";") { it.encode() }
+    }
+}
+
 /** Wallpapers that ship with the app, addressed by stable resource name so stored choices survive updates. */
 object BundledWallpaper {
     const val PREFIX = "android.resource://com.versity.launcher/drawable/wp_"
@@ -50,7 +68,7 @@ object BundledWallpaper {
 }
 
 data class LauncherSettings(
-    /** Photo or bundled wallpaper; null shows the palette gradient and backdrop. */
+    /** Photo or bundled wallpaper; null shows the palette gradient. */
     val wallpaperUri: String? = BundledWallpaper.uri("leviathan"),
     val dimPercent: Int = 10,           // 0..80
     val clockStyle: ClockStyle = ClockStyle.ORNAMENT,
@@ -58,7 +76,6 @@ data class LauncherSettings(
     val paletteId: String = "abyss",    // key into ThemePresets.palettes
     val accentArgb: Long? = null,       // null = use palette accent
     val layout: HomeLayout = HomeLayout.MINIMAL,
-    val backdrop: Backdrop = Backdrop.NONE,
     val favourites: List<String> = emptyList(), // AppEntry.key values, in display order
     val lockStyleEnabled: Boolean = false,
     val ornament: Ornament = Ornament.CELESTIAL,
@@ -75,6 +92,8 @@ data class LauncherSettings(
     val clockPlacement: ClockPlacement? = null,
     /** Free placement of the lock-screen clock; null uses the layout's own position. */
     val lockClockPlacement: ClockPlacement? = null,
+    /** Widgets on Versity's own home screen, in drawing order. */
+    val homeWidgets: List<HomeWidget> = emptyList(),
 ) {
     companion object {
         const val MIN_DIM = 0

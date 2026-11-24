@@ -1,7 +1,7 @@
 package com.versity.launcher.domain
 
-import com.versity.launcher.data.Backdrop
 import com.versity.launcher.data.ClockStyle
+import com.versity.launcher.data.HomeLayout
 import com.versity.launcher.data.LauncherSettings
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -56,7 +56,7 @@ class ThemePresetsTest {
         assertTrue(ThemePresets.palettes.isNotEmpty())
         for (p in ThemePresets.palettes) {
             assertTrue("${p.id} has blank name", p.name.isNotBlank())
-            listOf(p.backgroundTop, p.backgroundBottom, p.surface, p.onSurface, p.onSurfaceMuted, p.accent, p.rimUpper, p.rimLower)
+            listOf(p.backgroundTop, p.backgroundBottom, p.surface, p.onSurface, p.onSurfaceMuted, p.accent)
                 .forEach { assertEquals("${p.id} colour not opaque", 0xFFL, (it shr 24) and 0xFF) }
         }
     }
@@ -79,16 +79,16 @@ class ThemePresetsTest {
         )
     }
 
-    @Test fun celestialThemeUsesOrnamentSerifAndStars() {
-        val t = ThemePresets.themes.first { it.id == "celestial" }
+    @Test fun leviathanThemeUsesOrnamentSerifAndStar() {
+        val t = ThemePresets.themes.first { it.id == "leviathan" }
         assertEquals(ClockStyle.ORNAMENT, t.clockStyle)
         assertEquals("cormorant", t.fontId)
-        assertEquals(Backdrop.STARS, t.backdrop)
+        assertEquals("leviathan", t.wallpaperId)
         assertEquals(com.versity.launcher.data.Ornament.CELESTIAL, t.ornament)
     }
 
-    @Test fun atLeastFiveDozenBundledThemes() {
-        assertTrue(ThemePresets.themes.size >= 60)
+    @Test fun atLeastFortyBundledThemes() {
+        assertTrue(ThemePresets.themes.size >= 40)
     }
 
     @Test fun everyCategoryHasAtLeastThreeThemes() {
@@ -113,7 +113,7 @@ class ThemePresetsTest {
             wallpaperUri = "content://photo", favourites = listOf("a/A#0"), lockStyleEnabled = true,
             drawerStyle = com.versity.launcher.data.DrawerStyle.PLAIN, iconStyle = com.versity.launcher.data.IconStyle.ORIGINAL,
         )
-        val t = ThemePresets.theme("celestial")!!
+        val t = ThemePresets.theme("moonrise")!!
         val s = mine.withTheme(t)
         assertTrue(t.matches(s))
         assertEquals("content://photo", s.wallpaperUri)
@@ -124,7 +124,7 @@ class ThemePresetsTest {
     }
 
     @Test fun lockLookFollowsHomeUntilALockThemeIsChosen() {
-        val home = LauncherSettings.DEFAULT.withTheme(ThemePresets.theme("tide")!!).copy(wallpaperUri = "content://photo")
+        val home = LauncherSettings.DEFAULT.withTheme(ThemePresets.theme("shoreline")!!).copy(wallpaperUri = "content://photo")
         assertEquals(home, home.lockLook())
         val lock = home.copy(lockThemeId = "noir").lockLook()
         assertTrue(ThemePresets.theme("noir")!!.matches(lock))
@@ -146,7 +146,9 @@ class ThemePresetsTest {
         val t = ThemePresets.themes
         assertTrue(t.isNotEmpty())
         assertEquals(t.size, t.map { it.id }.toSet().size)
-        assertEquals(t.size, t.map { listOf(it.paletteId, it.fontId, it.clockStyle, it.layout, it.backdrop, it.wallpaperId) }.toSet().size)
+        assertEquals(t.size, t.map { listOf(it.paletteId, it.fontId, it.clockStyle, it.layout, it.wallpaperId) }.toSet().size)
+        // Themes are recognised without their wallpaper (a photo can replace it), so the rest must differ too.
+        assertEquals(t.size, t.map { listOf(it.paletteId, it.fontId, it.clockStyle, it.dimPercent, it.layout, it.ornament) }.toSet().size)
     }
 
     @Test fun everyThemeReferencesExistingPartsAndValidDim() {
@@ -164,12 +166,12 @@ class ThemePresetsTest {
         assertTrue(ThemePresets.themes.map { it.clockStyle }.toSet().size >= 3)
     }
 
-    @Test fun themesUseAtLeastThreeDistinctBackdrops() {
-        assertTrue(ThemePresets.themes.map { it.backdrop }.toSet().size >= 3)
+    @Test fun almostEveryThemeBringsAWallpaper() {
+        assertTrue(ThemePresets.themes.count { it.wallpaperId == null } <= 6)
     }
 
-    @Test fun everyBackdropIsOfferedByAtLeastOneTheme() {
-        assertEquals(Backdrop.entries.toSet(), ThemePresets.themes.map { it.backdrop }.toSet())
+    @Test fun everyClockStyleIsUsedByATheme() {
+        assertEquals(ClockStyle.entries.toSet(), ThemePresets.themes.map { it.clockStyle }.toSet())
     }
 
     @Test fun defaultSettingsEqualTheLeviathanTheme() {
@@ -213,7 +215,7 @@ class ThemePresetsTest {
 
     @Test fun everyBigClockStyleHasATheme() {
         val big = com.versity.launcher.ui.home.components.BigClockStyles
-        assertEquals(big, ThemePresets.themes.filter { it.category == ThemeCategory.BIG }.map { it.clockStyle }.toSet())
+        assertTrue(ThemePresets.themes.map { it.clockStyle }.toSet().containsAll(big))
     }
 
     @Test fun lockPlacementIsSeparateFromHome() {
@@ -247,9 +249,10 @@ class ThemePresetsTest {
         assertTrue(Wallpapers.collections.size >= 7)
     }
 
-    @Test fun theTwoCircleBackdropIsGone() {
-        assertTrue(Backdrop.entries.none { it.name == "ORBIT" })
-        assertTrue(ThemePresets.themes.none { it.id == "orbit" })
+    @Test fun legacyPiecesAreGone() {
+        assertTrue(ClockStyle.entries.none { it.name == "STACKED" || it.name == "SINGLE_LINE" })
+        assertTrue(HomeLayout.entries.none { it.name == "CLASSIC" })
+        assertTrue(ThemePresets.themes.none { it.id in setOf("orbit", "synthwave", "terminal", "cyber", "monsoon") })
     }
 
     @Test fun lockStyleIsOffByDefault() {

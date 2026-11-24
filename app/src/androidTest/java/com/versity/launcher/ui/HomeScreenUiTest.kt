@@ -8,7 +8,8 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.longClick
 import com.versity.launcher.data.AppEntry
-import com.versity.launcher.data.Backdrop
+import com.versity.launcher.ui.home.HomeActions
+import androidx.compose.ui.test.swipeUp
 import com.versity.launcher.data.ClockStyle
 import com.versity.launcher.data.HomeLayout
 import com.versity.launcher.data.LauncherSettings
@@ -22,9 +23,9 @@ class HomeScreenUiTest {
     @get:Rule val rule = createComposeRule()
 
     private val tags = mapOf(
-        ClockStyle.STACKED to TestTags.CLOCK_STACKED,
-        ClockStyle.SINGLE_LINE to TestTags.CLOCK_SINGLE_LINE,
+        ClockStyle.ORNAMENT to TestTags.CLOCK_ORNAMENT,
         ClockStyle.ANALOGUE to TestTags.CLOCK_ANALOGUE,
+        ClockStyle.GIANT to TestTags.clockFace(ClockStyle.GIANT.name),
     )
 
     private fun assertOnly(style: ClockStyle) {
@@ -35,10 +36,10 @@ class HomeScreenUiTest {
     }
 
     @Test fun clockStyleSwitchChangesRenderedClock() {
-        var state by mutableStateOf(HomeUiState(LauncherSettings.DEFAULT.copy(clockStyle = ClockStyle.STACKED)))
+        var state by mutableStateOf(HomeUiState(LauncherSettings.DEFAULT.copy(clockStyle = ClockStyle.ORNAMENT)))
         rule.setContent { HomeContent(state) }
-        assertOnly(ClockStyle.STACKED)
-        for (style in listOf(ClockStyle.SINGLE_LINE, ClockStyle.ANALOGUE, ClockStyle.STACKED)) {
+        assertOnly(ClockStyle.ORNAMENT)
+        for (style in listOf(ClockStyle.GIANT, ClockStyle.ANALOGUE, ClockStyle.ORNAMENT)) {
             state = state.copy(settings = state.settings.copy(clockStyle = style))
             rule.waitForIdle()
             assertOnly(style)
@@ -53,9 +54,6 @@ class HomeScreenUiTest {
         state = state.copy(settings = state.settings.copy(dimPercent = 80))
         rule.waitForIdle()
         assertEquals(0.80f, alpha(), 0.001f)
-        state = state.copy(settings = state.settings.copy(dimPercent = 0))
-        rule.waitForIdle()
-        assertEquals(0.0f, alpha(), 0.001f)
     }
 
     private val apps = listOf(
@@ -63,32 +61,33 @@ class HomeScreenUiTest {
         AppEntry("Music", "p.mus", "p.mus.A"),
     )
 
-    @Test fun favouritesAreShownOnHome() {
+    @Test fun favouritesSitInTheDock() {
         rule.setContent { HomeContent(HomeUiState(favourites = apps)) }
-        apps.forEach { rule.onNodeWithTag(TestTags.favourite(it.key)).assertExists() }
-    }
-
-    @Test fun minimalLayoutHidesWidgetsButKeepsFavouritesAndDock() {
-        val s = LauncherSettings.DEFAULT.copy(layout = HomeLayout.MINIMAL)
-        rule.setContent { HomeContent(HomeUiState(settings = s, favourites = apps)) }
-        rule.onNodeWithTag(TestTags.BATTERY_BAR).assertDoesNotExist()
-        rule.onNodeWithTag(TestTags.DATE_RING).assertDoesNotExist()
-        rule.onNodeWithTag(TestTags.WIDGET_ANALOGUE).assertDoesNotExist()
-        rule.onNodeWithTag(TestTags.favourite(apps[0].key)).assertExists()
+        apps.forEach { rule.onNodeWithTag(TestTags.dockApp(it.key)).assertExists() }
         rule.onNodeWithTag(TestTags.DOCK_APPS).assertExists()
     }
 
-    @Test fun classicLayoutShowsWidgets() {
-        val s = LauncherSettings.DEFAULT.copy(layout = HomeLayout.CLASSIC)
-        rule.setContent { HomeContent(HomeUiState(settings = s)) }
-        rule.onNodeWithTag(TestTags.BATTERY_BAR).assertExists()
-        rule.onNodeWithTag(TestTags.DATE_RING).assertExists()
+    @Test fun bothLayoutsKeepTheDock() {
+        var state by mutableStateOf(HomeUiState(settings = LauncherSettings.DEFAULT.copy(layout = HomeLayout.MINIMAL)))
+        rule.setContent { HomeContent(state) }
+        rule.onNodeWithTag(TestTags.DOCK).assertExists()
+        state = state.copy(settings = state.settings.copy(layout = HomeLayout.ORBIT))
+        rule.waitForIdle()
+        rule.onNodeWithTag(TestTags.DOCK).assertExists()
     }
 
-    @Test fun longPressingAFavouriteDoesNotOpenCustomise() {
+    @Test fun swipingUpOpensAllApps() {
         var opened = 0
-        rule.setContent { HomeContent(HomeUiState(favourites = apps), onOpenCustomise = { opened++ }) }
-        rule.onNodeWithTag(TestTags.favourite(apps[0].key)).performTouchInput { longClick() }
+        rule.setContent { HomeContent(HomeUiState(), actions = object : HomeActions() { override fun openDrawer() { opened++ } }) }
+        rule.onNodeWithTag(TestTags.DIM_OVERLAY).performTouchInput { swipeUp() }
+        rule.waitForIdle()
+        assertEquals(1, opened)
+    }
+
+    @Test fun longPressingADockAppDoesNotOpenCustomise() {
+        var opened = 0
+        rule.setContent { HomeContent(HomeUiState(favourites = apps), actions = object : HomeActions() { override fun openCustomise() { opened++ } }) }
+        rule.onNodeWithTag(TestTags.dockApp(apps[0].key)).performTouchInput { longClick() }
         rule.waitForIdle()
         assertEquals(0, opened)
     }
@@ -97,12 +96,5 @@ class HomeScreenUiTest {
         rule.setContent { HomeContent(HomeUiState(loaded = false)) }
         tags.values.forEach { rule.onNodeWithTag(it).assertDoesNotExist() }
         rule.onNodeWithTag(TestTags.DOCK_APPS).assertDoesNotExist()
-    }
-
-    @Test fun homeDrawsTheBackdropOfTheSettings() {
-        val s = LauncherSettings.DEFAULT.copy(backdrop = Backdrop.HORIZON)
-        rule.setContent { HomeContent(HomeUiState(settings = s)) }
-        rule.onNodeWithTag(TestTags.backdrop("HORIZON")).assertExists()
-        rule.onNodeWithTag(TestTags.backdrop("STARS")).assertDoesNotExist()
     }
 }

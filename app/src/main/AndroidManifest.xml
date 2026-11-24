@@ -38,11 +38,15 @@
             </intent-filter>
         </activity>
 
-        <!-- Home-screen clock widgets. TextClock keeps time, so there are no update alarms. -->
+        <!--
+          Home-screen widgets. TextClock and AnalogClock keep time, so only the month view uses an
+          alarm (once, after midnight). The first two class names date from 0.2 and are kept so placed
+          widgets survive updates.
+        -->
         <receiver
             android:name=".widget.CelestialTimeWidget"
             android:exported="false"
-            android:label="@string/widget_celestial_time_label">
+            android:label="@string/widget_digital_label">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -53,7 +57,7 @@
         <receiver
             android:name=".widget.CelestialTimeDateWidget"
             android:exported="false"
-            android:label="@string/widget_celestial_time_date_label">
+            android:label="@string/widget_clock_date_label">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -61,5 +65,49 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_celestial_time_date_info" />
         </receiver>
+        <receiver
+            android:name=".widget.AnalogueClockWidget"
+            android:exported="false"
+            android:label="@string/widget_analogue_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_analogue_info" />
+        </receiver>
+        <receiver
+            android:name=".widget.DateWidget"
+            android:exported="false"
+            android:label="@string/widget_date_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <!-- The month view is redrawn when the clock, time zone or language changes. -->
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.LOCALE_CHANGED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_date_info" />
+        </receiver>
+
+        <!-- Confirms a widget pinned from the studio and hands it the look the user designed. -->
+        <receiver
+            android:name=".widget.WidgetPinnedReceiver"
+            android:exported="false" />
+
+        <!-- The widget studio, opened by home screens when a widget is placed or re-edited. -->
+        <activity
+            android:name=".widget.WidgetConfigActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:label="@string/widget_studio_title"
+            android:taskAffinity=""
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
     </application>
 </manifest>
