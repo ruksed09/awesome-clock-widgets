@@ -23,10 +23,10 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Unit tests
-        run: ./gradlew testDebugUnitTest
+        run: ./gradlew --init-script .github/ci/maven-mirror.gradle testDebugUnitTest
 
       - name: Build debug APK
-        run: ./gradlew assembleDebug
+        run: ./gradlew --init-script .github/ci/maven-mirror.gradle assembleDebug
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4

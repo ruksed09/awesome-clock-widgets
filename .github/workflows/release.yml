@@ -42,7 +42,7 @@ jobs:
           VERSITY_KEY_PASSWORD: ${{ secrets.VERSITY_KEY_PASSWORD }}
         run: |
           echo "${{ secrets.VERSITY_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/versity.jks"
-          VERSITY_KEYSTORE="$RUNNER_TEMP/versity.jks" ./gradlew testDebugUnitTest assembleRelease
+          VERSITY_KEYSTORE="$RUNNER_TEMP/versity.jks" ./gradlew --init-script .github/ci/maven-mirror.gradle testDebugUnitTest assembleRelease
           mkdir -p dist
           cp app/build/outputs/apk/release/app-release.apk "dist/versity-$VERSION.apk"
 

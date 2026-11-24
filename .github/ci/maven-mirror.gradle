@@ -1,0 +1,19 @@
+// CI only (passed with --init-script). Maven Central rate-limits shared GitHub
+// runners with HTTP 429, so resolve its artifacts through Google's public mirror
+// first; mavenCentral() stays in the list as the fallback.
+def mirrorUrl = 'https://maven-central.storage-download.googleapis.com/maven2/'
+
+settingsEvaluated { settings ->
+    [settings.pluginManagement.repositories, settings.dependencyResolutionManagement.repositories].each { repos ->
+        def mirror = repos.maven { name = 'mavenCentralMirror'; url = mirrorUrl }
+        repos.remove(mirror)
+        repos.addFirst(mirror)
+    }
+}
+
+// Robolectric downloads its Android runtime jars while the tests run.
+allprojects {
+    tasks.withType(Test).configureEach {
+        systemProperty 'robolectric.dependency.repo.url', mirrorUrl
+    }
+}
