@@ -82,7 +82,8 @@ object GitHubReleases {
         return false
     }
 
-    suspend fun latest(): Release? = withContext(Dispatchers.IO) {
+    /** The latest release's JSON as GitHub sends it, or null when there is none yet. */
+    suspend fun latestJson(): String? = withContext(Dispatchers.IO) {
         val conn = URL(LATEST).openConnection() as HttpURLConnection
         try {
             conn.connectTimeout = 10_000
@@ -91,7 +92,7 @@ object GitHubReleases {
             // GitHub asks API clients to name themselves; nothing personal is sent.
             conn.setRequestProperty("User-Agent", "Versity-Updater")
             when (conn.responseCode) {
-                200 -> parse(conn.inputStream.bufferedReader().use { it.readText() })
+                200 -> conn.inputStream.bufferedReader().use { it.readText() }
                 404 -> null
                 else -> error("GitHub answered ${conn.responseCode}")
             }
@@ -113,22 +114,42 @@ class UpdateManager(private val app: Context, private val scope: CoroutineScope)
     val currentVersion: String =
         runCatching { app.packageManager.getPackageInfo(app.packageName, 0).versionName }.getOrNull().orEmpty()
 
-    /** Checks at most once a day unless [force]. */
+    init {
+        // An update found earlier is shown straight away on every launch until it is installed, rather
+        // than only in the session that happened to find it.
+        known()?.let { _state.value = UpdateState.Available(it) }
+    }
+
+    /** The last release GitHub reported, if it is still newer than this install. */
+    private fun known(): Release? = prefs.getString(LATEST_JSON, null)
+        ?.let { runCatching { GitHubReleases.parse(it) }.getOrNull() }
+        ?.takeIf { GitHubReleases.isNewer(it.version, currentVersion) }
+
+    /**
+     * Asks GitHub for the latest release, at most once an hour unless [force] (the "Check now" button).
+     * Called each time Versity comes to the front, so a new release shows within the hour.
+     */
     fun check(force: Boolean = false) {
-        val busy = _state.value is UpdateState.Checking || _state.value is UpdateState.Downloading
-        val recent = System.currentTimeMillis() - prefs.getLong(LAST_CHECK, 0L) < DAY
+        val busy = _state.value is UpdateState.Checking || _state.value is UpdateState.Downloading || _state.value is UpdateState.Ready
+        val recent = System.currentTimeMillis() - prefs.getLong(LAST_CHECK, 0L) < CHECK_EVERY
         if (busy || (!force && recent)) return
         scope.launch {
-            _state.value = UpdateState.Checking
-            _state.value = runCatching { GitHubReleases.latest() }.fold(
-                onSuccess = { release ->
-                    prefs.edit().putLong(LAST_CHECK, System.currentTimeMillis()).apply()
+            val before = _state.value
+            if (force || before !is UpdateState.Available) _state.value = UpdateState.Checking
+            _state.value = runCatching { GitHubReleases.latestJson() }.fold(
+                onSuccess = { json ->
+                    val release = json?.let { runCatching { GitHubReleases.parse(it) }.getOrNull() }
+                    prefs.edit().putLong(LAST_CHECK, System.currentTimeMillis()).putString(LATEST_JSON, json).apply()
                     when {
                         release != null && GitHubReleases.isNewer(release.version, currentVersion) -> UpdateState.Available(release)
                         else -> UpdateState.UpToDate(currentVersion)
                     }
                 },
-                onFailure = { UpdateState.Failed("Couldn't reach GitHub. Check your connection and try again.") },
+                // A quiet background check that fails keeps showing what was already known.
+                onFailure = {
+                    if (!force && before is UpdateState.Available) before
+                    else UpdateState.Failed("Couldn't reach GitHub. Check your connection and try again.")
+                },
             )
         }
     }
@@ -241,6 +262,8 @@ class UpdateManager(private val app: Context, private val scope: CoroutineScope)
 
     private companion object {
         const val LAST_CHECK = "last_check"
-        const val DAY = 24 * 60 * 60 * 1000L
+        const val LATEST_JSON = "latest_json"
+        /** GitHub allows 60 anonymous requests an hour; one an hour is far inside that. */
+        const val CHECK_EVERY = 60 * 60 * 1000L
     }
 }

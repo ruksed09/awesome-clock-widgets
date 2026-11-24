@@ -112,7 +112,7 @@ private fun ProgressLine(progress: Float) {
     }
 }
 
-/** Settings section: the version, what the last check found, the action that fits, and the daily switch. */
+/** Settings section: the version, what the last check found, the action that fits, and the automatic-check switch. */
 @Composable
 internal fun UpdatesSection(state: UpdateState, version: String, auto: Boolean, onAuto: (Boolean) -> Unit, actions: UpdateActions) {
     val c = Studio.colors
@@ -138,7 +138,7 @@ internal fun UpdatesSection(state: UpdateState, version: String, auto: Boolean, 
         if (state is UpdateState.Downloading) Box(Modifier.padding(start = 16.dp)) { ProgressLine(state.progress) }
         StudioSwitchRow(
             "Check automatically", auto, TestTags.UPDATE_AUTO, divider = true,
-            detail = "Once a day, when you open Versity. Updates are only installed when you tap Install.",
+            detail = "When you open Versity, at most once an hour. Updates are only installed when you tap Install.",
         ) { onAuto(it) }
     }
 }

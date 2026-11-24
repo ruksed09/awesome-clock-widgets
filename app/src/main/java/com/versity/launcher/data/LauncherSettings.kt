@@ -106,7 +106,7 @@ data class LauncherSettings(
     val phoneLockWallpaperId: Int? = null,
     /** The user's own photos, newest first, kept as private copies so they can be applied again. */
     val photos: List<String> = emptyList(),
-    /** Check GitHub once a day for a newer Versity. */
+    /** Check GitHub (at most hourly) for a newer Versity. */
     val autoUpdateCheck: Boolean = true,
 ) {
     companion object {

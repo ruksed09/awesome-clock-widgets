@@ -188,7 +188,7 @@ class MainActivity : ComponentActivity() {
             val update by container.updates.state.collectAsStateWithLifecycle()
             LifecycleResumeEffect(home.loaded, home.settings.autoUpdateCheck) {
                 homeVm.refreshApps()
-                // At most once a day, and only when the user has not switched it off.
+                // At most once an hour, and only when the user has not switched it off.
                 if (home.loaded && home.settings.autoUpdateCheck) container.updates.check()
                 onPauseOrDispose { }
             }
