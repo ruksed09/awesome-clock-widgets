@@ -2,7 +2,10 @@ name: Release
 
 on:
   push:
+    # A version tag, or a branch push that adds release notes (the tag is then created on GitHub).
     tags: ["v*"]
+    branches: ["**"]
+    paths: ["release/notes-v*.md"]
 
 permissions:
   contents: write
@@ -23,6 +26,13 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      - name: Work out the version
+        run: |
+          VERSION=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' app/build.gradle.kts | head -1)
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "TAG=v$VERSION" >> "$GITHUB_ENV"
+          test -f "release/notes-v$VERSION.md"
+
       # With the signing secrets set, build and sign the APK here.
       - name: Build signed release APK
         if: env.HAS_SIGNING_KEY == 'true'
@@ -34,19 +44,22 @@ jobs:
           echo "${{ secrets.VERSITY_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/versity.jks"
           VERSITY_KEYSTORE="$RUNNER_TEMP/versity.jks" ./gradlew testDebugUnitTest assembleRelease
           mkdir -p dist
-          cp app/build/outputs/apk/release/app-release.apk "dist/versity-${GITHUB_REF_NAME#v}.apk"
+          cp app/build/outputs/apk/release/app-release.apk "dist/versity-$VERSION.apk"
 
       # Without them, publish the APK that was built, signed and committed with this release.
       - name: Use the committed release APK
         if: env.HAS_SIGNING_KEY != 'true'
         run: |
           mkdir -p dist
-          cp "release/versity-${GITHUB_REF_NAME#v}.apk" dist/
+          cp "release/versity-$VERSION.apk" dist/
 
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          name: Versity ${{ github.ref_name }}
-          body_path: release/notes-${{ github.ref_name }}.md
+          tag_name: ${{ env.TAG }}
+          target_commitish: ${{ github.sha }}
+          name: Versity ${{ env.TAG }}
+          body_path: release/notes-${{ env.TAG }}.md
           files: dist/*.apk
           fail_on_unmatched_files: true
+          make_latest: true
