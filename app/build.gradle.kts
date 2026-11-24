@@ -33,6 +33,8 @@ android {
     }
     testOptions {
         unitTests.isReturnDefaultValues = true
+        // Lets the Robolectric screenshot tests load fonts and other resources.
+        unitTests.isIncludeAndroidResources = true
     }
 }
 
@@ -55,6 +57,10 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    // Screenshot harness only (renders Compose on the JVM); not part of the app.
+    testImplementation(libs.robolectric)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
 
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

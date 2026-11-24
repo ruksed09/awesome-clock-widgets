@@ -32,13 +32,21 @@ import kotlinx.coroutines.withContext
  * and unlock screen stay on top; some ColorOS versions or Theme Store themes may override it.
  */
 object LockWallpaper {
-    suspend fun apply(context: Context, settings: LauncherSettings): Result<Unit> = withContext(Dispatchers.IO) {
+    /**
+     * [which] is [WallpaperManager.FLAG_LOCK] (default), [WallpaperManager.FLAG_SYSTEM] for the home
+     * wallpaper, or both OR-ed together.
+     */
+    suspend fun apply(
+        context: Context,
+        settings: LauncherSettings,
+        which: Int = WallpaperManager.FLAG_LOCK,
+    ): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             val manager = WallpaperManager.getInstance(context)
             check(manager.isWallpaperSupported) { "This device does not support changing the wallpaper." }
             check(manager.isSetWallpaperAllowed) { "Changing the wallpaper is not allowed on this device." }
             val (w, h) = portraitSize(context)
-            manager.setBitmap(render(context, settings, w, h), null, true, WallpaperManager.FLAG_LOCK)
+            manager.setBitmap(render(context, settings, w, h), null, true, which)
             Unit
         }
     }

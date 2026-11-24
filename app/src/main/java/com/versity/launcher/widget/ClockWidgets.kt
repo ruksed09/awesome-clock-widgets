@@ -31,3 +31,14 @@ abstract class ClockWidgetProvider(@LayoutRes private val layout: Int) : AppWidg
 class CelestialTimeWidget : ClockWidgetProvider(R.layout.widget_celestial_time)
 
 class CelestialTimeDateWidget : ClockWidgetProvider(R.layout.widget_celestial_time_date)
+
+/** The clock widgets this app offers, as listed in Customise > Widgets. */
+enum class ClockWidgetKind(
+    val title: String,
+    val description: String,
+    val provider: Class<out AppWidgetProvider>,
+    val showsDate: Boolean,
+) {
+    CELESTIAL_TIME("Celestial time", "Serif time with a starlit line", CelestialTimeWidget::class.java, false),
+    CELESTIAL_TIME_DATE("Celestial time and date", "Serif time, starlit line and the date", CelestialTimeDateWidget::class.java, true),
+}

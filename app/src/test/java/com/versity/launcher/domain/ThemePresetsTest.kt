@@ -87,8 +87,59 @@ class ThemePresetsTest {
         assertEquals(com.versity.launcher.data.Ornament.CELESTIAL, t.ornament)
     }
 
-    @Test fun atLeastFourBundledThemes() {
-        assertTrue(ThemePresets.themes.size >= 4)
+    @Test fun atLeastTwoDozenBundledThemes() {
+        assertTrue(ThemePresets.themes.size >= 24)
+    }
+
+    @Test fun everyCategoryHasAtLeastThreeThemes() {
+        for (c in ThemeCategory.entries) {
+            assertTrue("$c", ThemePresets.themes.count { it.category == c } >= 3)
+        }
+    }
+
+    @Test fun everyThemeHasItsOwnName() {
+        val names = ThemePresets.themes.map { it.name }
+        assertEquals(names.size, names.toSet().size)
+    }
+
+    @Test fun ornamentThemesNameTheirOrnament() {
+        ThemePresets.themes.filter { it.clockStyle == ClockStyle.ORNAMENT }.forEach {
+            assertTrue("${it.id} has no ornament", it.ornament != null)
+        }
+    }
+
+    @Test fun withThemeChangesTheLookButKeepsPersonalChoices() {
+        val mine = LauncherSettings.DEFAULT.copy(
+            wallpaperUri = "content://photo", favourites = listOf("a/A#0"), lockStyleEnabled = true,
+            drawerStyle = com.versity.launcher.data.DrawerStyle.PLAIN, iconStyle = com.versity.launcher.data.IconStyle.ORIGINAL,
+        )
+        val t = ThemePresets.theme("celestial")!!
+        val s = mine.withTheme(t)
+        assertTrue(t.matches(s))
+        assertEquals("content://photo", s.wallpaperUri)
+        assertEquals(listOf("a/A#0"), s.favourites)
+        assertEquals(true, s.lockStyleEnabled)
+        assertEquals(com.versity.launcher.data.DrawerStyle.PLAIN, s.drawerStyle)
+        assertEquals(com.versity.launcher.data.IconStyle.ORIGINAL, s.iconStyle)
+    }
+
+    @Test fun lockLookFollowsHomeUntilALockThemeIsChosen() {
+        val home = LauncherSettings.DEFAULT.withTheme(ThemePresets.theme("tide")!!).copy(wallpaperUri = "content://photo")
+        assertEquals(home, home.lockLook())
+        val lock = home.copy(lockThemeId = "noir").lockLook()
+        assertTrue(ThemePresets.theme("noir")!!.matches(lock))
+        // A lock theme shows its own background, not the home photo.
+        assertEquals(null, lock.wallpaperUri)
+    }
+
+    @Test fun staleLockThemeIdFallsBackToHome() {
+        val home = LauncherSettings.DEFAULT.copy(lockThemeId = "removed_theme")
+        assertEquals(home, home.lockLook())
+    }
+
+    @Test fun drawerAndIconsAreLeftAloneByDefault() {
+        assertEquals(com.versity.launcher.data.DrawerStyle.PLAIN, LauncherSettings.DEFAULT.drawerStyle)
+        assertEquals(com.versity.launcher.data.IconStyle.ORIGINAL, LauncherSettings.DEFAULT.iconStyle)
     }
 
     @Test fun themeIdsAreUniqueAndLooksAreDistinct() {

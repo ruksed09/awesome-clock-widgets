@@ -10,7 +10,13 @@ enum class ClockStyle { STACKED, SINGLE_LINE, ANALOGUE, ORNAMENT }
 enum class Ornament { CELESTIAL, UNDERLINE, MOON, CORNERS }
 
 /** The decorative drawing behind everything: home, lock-style screen, drawer, previews and the exported lock wallpaper. */
-enum class Backdrop { NONE, ORBIT, RINGS, HORIZON, WAVES, STARS }
+enum class Backdrop { NONE, ORBIT, RINGS, HORIZON, WAVES, STARS, AURORA, DUNES, PEAKS, ECLIPSE, BOKEH, GRID, ARCS, RAIN }
+
+/** PLAIN: neutral drawer that follows the system light/dark mode and font. THEMED: drawer uses the theme. */
+enum class DrawerStyle { PLAIN, THEMED }
+
+/** ORIGINAL: app icons exactly as the apps ship them. THEMED: icons tinted to the theme's accent. */
+enum class IconStyle { ORIGINAL, THEMED }
 
 /** CLASSIC: clock, widgets, dock. MINIMAL: clock, favourites, dock. ORBIT: centred date and clock, widget row, two large circles. */
 enum class HomeLayout { CLASSIC, MINIMAL, ORBIT }
@@ -29,6 +35,10 @@ data class LauncherSettings(
     val ornament: Ornament = Ornament.CELESTIAL,
     /** ORNAMENT style only: show the date under the divider (and hide the separate date line). */
     val ornamentDate: Boolean = false,
+    /** Theme used on the lock screen; null means the lock screen matches the home screen. */
+    val lockThemeId: String? = null,
+    val drawerStyle: DrawerStyle = DrawerStyle.PLAIN,
+    val iconStyle: IconStyle = IconStyle.ORIGINAL,
 ) {
     companion object {
         const val MIN_DIM = 0

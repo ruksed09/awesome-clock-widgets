@@ -41,6 +41,13 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
                 ?.let { name -> Ornament.entries.firstOrNull { it.name == name } }
                 ?: d.ornament,
             ornamentDate = prefs[ORNAMENT_DATE] ?: d.ornamentDate,
+            lockThemeId = prefs[LOCK_THEME],
+            drawerStyle = prefs[DRAWER_STYLE]
+                ?.let { name -> DrawerStyle.entries.firstOrNull { it.name == name } }
+                ?: d.drawerStyle,
+            iconStyle = prefs[ICON_STYLE]
+                ?.let { name -> IconStyle.entries.firstOrNull { it.name == name } }
+                ?: d.iconStyle,
         )
     }
 
@@ -73,9 +80,20 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
 
     suspend fun setOrnamentDate(show: Boolean) = set(ORNAMENT_DATE, show)
 
-    /** One transaction: look only. Wallpaper, favourites and lock-style are left alone. */
-    suspend fun applyTheme(theme: ThemeBundle) {
+    /** null makes the lock screen follow the home screen again. */
+    suspend fun setLockThemeId(id: String?) = set(LOCK_THEME, id)
+
+    suspend fun setDrawerStyle(style: DrawerStyle) = set(DRAWER_STYLE, style.name)
+
+    suspend fun setIconStyle(style: IconStyle) = set(ICON_STYLE, style.name)
+
+    /**
+     * One transaction: look only. Favourites, lock-style, drawer and icon choices are left alone.
+     * The photo wallpaper is kept unless [clearWallpaper] asks for the theme's own background.
+     */
+    suspend fun applyTheme(theme: ThemeBundle, clearWallpaper: Boolean = false) {
         dataStore.edit { p ->
+            if (clearWallpaper) p.remove(WALLPAPER_URI)
             p[PALETTE_ID] = theme.paletteId
             p[FONT_ID] = theme.fontId
             p[CLOCK_STYLE] = theme.clockStyle.name
@@ -84,6 +102,7 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
             p[BACKDROP] = theme.backdrop.name
             if (theme.accentArgb == null) p.remove(ACCENT_ARGB) else p[ACCENT_ARGB] = theme.accentArgb
             theme.ornament?.let { p[ORNAMENT] = it.name }
+            theme.ornamentDate?.let { p[ORNAMENT_DATE] = it }
         }
     }
 
@@ -109,5 +128,8 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         val LOCK_STYLE = booleanPreferencesKey("lock_style_enabled")
         val ORNAMENT = stringPreferencesKey("ornament")
         val ORNAMENT_DATE = booleanPreferencesKey("ornament_date")
+        val LOCK_THEME = stringPreferencesKey("lock_theme_id")
+        val DRAWER_STYLE = stringPreferencesKey("drawer_style")
+        val ICON_STYLE = stringPreferencesKey("icon_style")
     }
 }

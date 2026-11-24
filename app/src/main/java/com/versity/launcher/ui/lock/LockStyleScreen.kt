@@ -56,8 +56,9 @@ import com.versity.launcher.ui.theme.animationsEnabled
 private const val UNLOCK_FRACTION = 0.25f
 
 /**
- * A lock-style screen shown inside the launcher. It is cosmetic: it does not secure the phone and the
- * system lock screen is unaffected. Unlocking is distance-only, so a quick flick of a few pixels never counts.
+ * The themed lock screen. It is shown over the system lock screen only while the phone is locked, and
+ * unlocking goes through the phone's own PIN, pattern, fingerprint or face check. It never weakens the
+ * phone's security. Unlocking is distance-only, so a quick flick of a few pixels never counts.
  */
 @Composable
 fun LockStyleContent(state: HomeUiState, onUnlock: () -> Unit, modifier: Modifier = Modifier) = AppTheme(state.settings) {
@@ -80,9 +81,10 @@ fun LockStyleContent(state: HomeUiState, onUnlock: () -> Unit, modifier: Modifie
                 state = dragState,
                 orientation = Orientation.Vertical,
                 onDragStopped = {
-                    if (-dragPx > heightPx * UNLOCK_FRACTION) {
-                        currentUnlock()
-                    } else if (animate) {
+                    // Past the threshold, ask to unlock; the system may show PIN or fingerprint first.
+                    // Either way the screen settles back, so a cancelled prompt leaves it intact.
+                    if (-dragPx > heightPx * UNLOCK_FRACTION) currentUnlock()
+                    if (animate) {
                         animate(dragPx, 0f, animationSpec = tween(160)) { v, _ -> dragPx = v }
                     } else {
                         dragPx = 0f

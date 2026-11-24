@@ -256,7 +256,12 @@ private fun OrbitLayout(state: HomeUiState, actions: HomeActions, wide: Boolean)
 @Composable
 internal fun ClockBlock(state: HomeUiState) {
     val time = state.now.toLocalTime()
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    val centered = state.settings.clockStyle == ClockStyle.ORNAMENT && state.settings.layout == HomeLayout.MINIMAL
+    Column(
+        if (centered) Modifier.fillMaxWidth() else Modifier,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalAlignment = if (centered) Alignment.CenterHorizontally else Alignment.Start,
+    ) {
         when (state.settings.clockStyle) {
             ClockStyle.STACKED -> StackedClock(time, state.is24Hour, Modifier.fillMaxWidth())
             ClockStyle.SINGLE_LINE -> SingleLineClock(time, state.is24Hour, Modifier.fillMaxWidth())
@@ -264,7 +269,7 @@ internal fun ClockBlock(state: HomeUiState) {
             ClockStyle.ORNAMENT -> OrnamentClock(
                 time, state.is24Hour, state.settings.ornament, Modifier.fillMaxWidth(),
                 date = state.now.toLocalDate().takeIf { state.settings.ornamentDate },
-                sizeRange = 48f..96f, centered = state.settings.layout == HomeLayout.MINIMAL,
+                sizeRange = 48f..96f, centered = centered,
             )
         }
         if (!state.settings.showsOwnDate) {

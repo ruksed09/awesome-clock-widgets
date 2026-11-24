@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.sp
 import com.versity.launcher.data.Ornament
 import com.versity.launcher.ui.TestTags
 import com.versity.launcher.ui.theme.LauncherTheme
+import com.versity.launcher.ui.theme.LiningFigures
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -69,6 +70,7 @@ fun OrnamentClock(
             fontSize = sizeSp.sp,
             lineHeight = (sizeSp * 1.1f).sp,
             letterSpacing = (sizeSp * 0.02f).sp,
+            fontFeatureSettings = LiningFigures,
             // Faint halo so thin digits hold up on busy wallpapers.
             shadow = Shadow(ink.copy(alpha = 0.35f), blurRadius = sizeSp * 0.25f),
         )

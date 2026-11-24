@@ -1,7 +1,19 @@
 package com.versity.launcher
 
+import android.app.KeyguardManager
+import android.app.WallpaperManager
+import android.appwidget.AppWidgetManager
 import android.content.ActivityNotFoundException
+import android.content.BroadcastReceiver
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
+import android.view.WindowManager
+import android.widget.Toast
+import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
@@ -47,7 +59,16 @@ import com.versity.launcher.ui.lock.LockStyleContent
 import com.versity.launcher.ui.settings.CustomiseActions
 import com.versity.launcher.ui.settings.CustomiseContent
 import com.versity.launcher.ui.settings.CustomiseViewModel
-import com.versity.launcher.ui.theme.AppTheme
+import com.versity.launcher.ui.theme.DrawerTheme
+import com.versity.launcher.ui.theme.plainDrawerIsLight
+import com.versity.launcher.ui.settings.ApplyTarget
+import com.versity.launcher.ui.settings.ThemeApplyRequest
+import com.versity.launcher.domain.lockLook
+import com.versity.launcher.domain.withTheme
+import com.versity.launcher.data.DrawerStyle
+import com.versity.launcher.data.IconStyle
+import com.versity.launcher.data.Ornament
+import com.versity.launcher.widget.ClockWidgetKind
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -58,8 +79,25 @@ class MainActivity : ComponentActivity() {
     /** Bumped when HOME is pressed while we are already running, so we return to the home screen. */
     private var homeSignal by mutableIntStateOf(0)
 
-    /** Bumped when the screen turns off while we are in front, so the lock-style screen shows again. */
-    private var lockSignal by mutableIntStateOf(0)
+    /**
+     * True while the phone's own lock (keyguard) is engaged. The themed lock screen follows it: it shows
+     * while the phone is locked and disappears when the user unlocks with PIN, fingerprint or face.
+     */
+    private var systemLocked by mutableStateOf(false)
+
+    private val keyguard by lazy { getSystemService(KeyguardManager::class.java) }
+
+    private val lockReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            when (intent.action) {
+                // Switch to the lock screen while the display is still off, so the home screen is never
+                // what appears over the keyguard. SCREEN_ON corrects it if the phone did not actually lock.
+                Intent.ACTION_SCREEN_OFF -> systemLocked = true
+                Intent.ACTION_SCREEN_ON -> systemLocked = keyguard?.isKeyguardLocked == true
+                Intent.ACTION_USER_PRESENT -> systemLocked = false
+            }
+        }
+    }
 
     private val appLauncher by lazy { AppLauncher(this) }
 
@@ -68,6 +106,16 @@ class MainActivity : ComponentActivity() {
         val dark = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
         enableEdgeToEdge(statusBarStyle = dark, navigationBarStyle = dark)
         val container = (application as LauncherApplication).container
+        systemLocked = keyguard?.isKeyguardLocked == true
+        ContextCompat.registerReceiver(
+            this, lockReceiver,
+            IntentFilter().apply {
+                addAction(Intent.ACTION_SCREEN_OFF)
+                addAction(Intent.ACTION_SCREEN_ON)
+                addAction(Intent.ACTION_USER_PRESENT)
+            },
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
 
         setContent {
             val context = LocalContext.current
@@ -99,19 +147,13 @@ class MainActivity : ComponentActivity() {
                 seenHome = homeSignal
                 screen = Screen.HOME
             }
-            // Starts unlocked: a process restart (ColorOS kills launchers often) must never raise the lock screen by itself.
-            var locked by rememberSaveable { mutableStateOf(false) }
             var previewingLock by remember { mutableStateOf(false) }
             var lockWallpaperStatus by remember { mutableStateOf<String?>(null) }
-            var seenLock by remember { mutableIntStateOf(lockSignal) }
-            if (seenLock != lockSignal) {
-                seenLock = lockSignal
-                locked = true
-            }
-            // Turning the option off clears the lock, so enabling it later never locks you out mid-edit.
-            LaunchedEffect(home.loaded, home.settings.lockStyleEnabled) {
-                if (home.loaded && !home.settings.lockStyleEnabled) locked = false
-            }
+            var widgetStatus by remember { mutableStateOf<String?>(null) }
+            // The themed lock screen follows the phone's real lock state; there is no separate in-app lock.
+            val lockUi = home.loaded && home.settings.lockStyleEnabled && systemLocked
+            // Only the lock screen may ever be drawn over the keyguard. Everything else stays behind the phone's lock.
+            LaunchedEffect(lockUi) { showOverKeyguard(lockUi) }
 
             LifecycleResumeEffect(Unit) {
                 homeVm.refreshApps()
@@ -134,10 +176,20 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            val showLock = home.loaded && screen == Screen.HOME &&
-                ((home.settings.lockStyleEnabled && locked) || previewingLock)
+            val showLock = lockUi || (home.loaded && screen == Screen.HOME && previewingLock)
+            // The plain drawer follows the system theme; in light mode the bars need dark icons.
+            val lightBars = screen == Screen.DRAWER && !showLock && plainDrawerIsLight(home.settings)
+            LaunchedEffect(lightBars) {
+                WindowCompat.getInsetsController(window, window.decorView).apply {
+                    isAppearanceLightStatusBars = lightBars
+                    isAppearanceLightNavigationBars = lightBars
+                }
+            }
             when {
-                showLock -> LockStyleContent(home, onUnlock = { locked = false; previewingLock = false })
+                showLock -> LockStyleContent(
+                    home.copy(settings = home.settings.lockLook()),
+                    onUnlock = { if (lockUi) requestUnlock() else previewingLock = false },
+                )
                 screen == Screen.HOME -> HomeContent(
                     state = home,
                     onOpenDrawer = { drawerVm.refresh(); screen = Screen.DRAWER },
@@ -153,7 +205,7 @@ class MainActivity : ComponentActivity() {
                 )
                 screen == Screen.DRAWER -> {
                     val drawer by drawerVm.state.collectAsStateWithLifecycle()
-                    AppTheme(home.settings) {
+                    DrawerTheme(home.settings) {
                         AppDrawerContent(
                             state = drawer,
                             onQueryChange = drawerVm::onQueryChange,
@@ -178,34 +230,121 @@ class MainActivity : ComponentActivity() {
                         override fun onFont(id: String) { customiseVm.setFont(id) }
                         override fun onPalette(id: String) { customiseVm.setPalette(id) }
                         override fun onAccent(argb: Long?) { customiseVm.setAccent(argb) }
-                        override fun onTheme(theme: ThemeBundle) { customiseVm.applyTheme(theme) }
+                        override fun onApplyTheme(request: ThemeApplyRequest) {
+                            applyTheme(request, home.settings, customiseVm) { lockWallpaperStatus = it }
+                        }
+                        override fun onLockFollowsHome() { customiseVm.setLockTheme(null) }
+                        override fun onDrawerStyle(style: DrawerStyle) { customiseVm.setDrawerStyle(style) }
+                        override fun onIconStyle(style: IconStyle) { customiseVm.setIconStyle(style) }
+                        override fun onAddWidget(kind: ClockWidgetKind) { widgetStatus = pinWidget(kind) }
                         override fun onLayout(layout: HomeLayout) { customiseVm.setLayout(layout) }
                         override fun onLockStyle(enabled: Boolean) { customiseVm.setLockStyle(enabled) }
                         override fun onBackdrop(backdrop: Backdrop) { customiseVm.setBackdrop(backdrop) }
-                        override fun onOrnament(ornament: com.versity.launcher.data.Ornament) { customiseVm.setOrnament(ornament) }
+                        override fun onOrnament(ornament: Ornament) { customiseVm.setOrnament(ornament) }
                         override fun onOrnamentDate(show: Boolean) { customiseVm.setOrnamentDate(show) }
                         override fun onPreviewLock() { previewingLock = true; screen = Screen.HOME }
                         override fun onSetLockWallpaper() {
                             lockWallpaperStatus = "Applying\u2026"
                             lifecycleScope.launch {
-                                val result = LockWallpaper.apply(context.applicationContext, home.settings)
+                                val result = LockWallpaper.apply(context.applicationContext, home.settings.lockLook())
                                 lockWallpaperStatus = if (result.isSuccess) "Applied. Lock your phone to see it."
                                 else "Could not apply: ${result.exceptionOrNull()?.message ?: "unknown error"}"
                             }
                         }
                         override fun onReset() { customiseVm.reset() }
                     }
-                    CustomiseContent(home.settings, actions, onBack = { screen = Screen.HOME }, lockWallpaperStatus = lockWallpaperStatus)
+                    CustomiseContent(home.settings, actions, onBack = { screen = Screen.HOME }, lockWallpaperStatus = lockWallpaperStatus, widgetStatus = widgetStatus)
                 }
             }
         }
     }
 
-    override fun onStop() {
-        super.onStop()
-        // Screen off while in front: show the lock-style screen again next time.
-        val power = getSystemService(PowerManager::class.java)
-        if (power != null && !power.isInteractive) lockSignal++
+    override fun onDestroy() {
+        runCatching { unregisterReceiver(lockReceiver) }
+        super.onDestroy()
+    }
+
+    /** Lets this activity appear over the keyguard (true) or keeps it behind the phone's lock (false). */
+    private fun showOverKeyguard(show: Boolean) {
+        if (Build.VERSION.SDK_INT >= 27) {
+            setShowWhenLocked(show)
+        } else {
+            @Suppress("DEPRECATION")
+            if (show) window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED)
+            else window.clearFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED)
+        }
+    }
+
+    /**
+     * Unlock gesture on the themed lock screen. When the phone is locked, the system asks for PIN,
+     * pattern, fingerprint or face as usual; the lock screen only goes away once that succeeds.
+     */
+    private fun requestUnlock() {
+        val km = keyguard
+        if (km != null && km.isKeyguardLocked) {
+            km.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {
+                override fun onDismissSucceeded() { systemLocked = false }
+            })
+        } else {
+            systemLocked = false
+        }
+    }
+
+    /** Applies a theme to home, lock or both, and optionally to the phone's own wallpapers. */
+    private fun applyTheme(
+        request: ThemeApplyRequest,
+        before: com.versity.launcher.data.LauncherSettings,
+        customiseVm: CustomiseViewModel,
+        onWallpaperStatus: (String) -> Unit,
+    ) {
+        val theme = request.theme
+        if (request.target.home) customiseVm.applyTheme(theme, clearWallpaper = request.useThemeBackground)
+        when (request.target) {
+            ApplyTarget.LOCK -> customiseVm.setLockTheme(theme.id)
+            ApplyTarget.BOTH -> customiseVm.setLockTheme(null)
+            ApplyTarget.HOME -> Unit
+        }
+        if (request.showLockScreen) customiseVm.setLockStyle(true)
+
+        val homeLook = before.withTheme(theme).copy(wallpaperUri = if (request.useThemeBackground) null else before.wallpaperUri)
+        val lockLook = if (request.target == ApplyTarget.LOCK) before.withTheme(theme).copy(wallpaperUri = null) else homeLook
+        val where = when (request.target) {
+            ApplyTarget.HOME -> "home screen"
+            ApplyTarget.LOCK -> "lock screen"
+            ApplyTarget.BOTH -> "home and lock screens"
+        }
+        Toast.makeText(this, "${theme.name} applied to the $where", Toast.LENGTH_SHORT).show()
+        if (!request.setPhoneWallpaper && !request.setLockWallpaper) return
+        onWallpaperStatus("Setting wallpaper\u2026")
+        lifecycleScope.launch {
+            val app = applicationContext
+            val results = if (request.setPhoneWallpaper && request.setLockWallpaper && homeLook == lockLook) {
+                listOf(LockWallpaper.apply(app, homeLook, WallpaperManager.FLAG_SYSTEM or WallpaperManager.FLAG_LOCK))
+            } else {
+                listOfNotNull(
+                    if (request.setPhoneWallpaper) LockWallpaper.apply(app, homeLook, WallpaperManager.FLAG_SYSTEM) else null,
+                    if (request.setLockWallpaper) LockWallpaper.apply(app, lockLook, WallpaperManager.FLAG_LOCK) else null,
+                )
+            }
+            val failure = results.firstOrNull { it.isFailure }?.exceptionOrNull()
+            onWallpaperStatus(
+                if (failure == null) "Wallpaper set. Some phones' own lock-screen themes can still cover it."
+                else "Could not set wallpaper: ${failure.message ?: "unknown error"}",
+            )
+        }
+    }
+
+    /** Asks the current home app to place a widget. Returns a message to show when that is not possible. */
+    private fun pinWidget(kind: ClockWidgetKind): String {
+        val manager = AppWidgetManager.getInstance(this)
+        val provider = ComponentName(this, kind.provider)
+        val asked = manager.isRequestPinAppWidgetSupported && runCatching { manager.requestPinAppWidget(provider, null, null) }.getOrDefault(false)
+        return when {
+            asked -> "Your home screen will ask where to put the widget."
+            DefaultLauncherCheck.isDefault(this) ->
+                "Versity can't hold widgets yet. With another home app, long-press its home screen, choose Widgets, then find Versity."
+            else -> "Your home screen app can't add widgets from here. Long-press an empty spot on it, choose Widgets, then find Versity."
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -215,6 +354,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        systemLocked = keyguard?.isKeyguardLocked == true
         (application as LauncherApplication).container.isDefaultLauncher.value = DefaultLauncherCheck.isDefault(this)
     }
 

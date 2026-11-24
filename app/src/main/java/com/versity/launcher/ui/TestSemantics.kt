@@ -40,6 +40,21 @@ object TestTags {
     const val PICK_WALLPAPER = "pick_wallpaper"
     const val CLEAR_WALLPAPER = "clear_wallpaper"
     const val DIM_SLIDER = "dim_slider"
+    fun tab(name: String) = "tab_$name"
+    fun category(name: String) = "category_$name"
+    const val APPLY_SHEET = "apply_sheet"
+    fun applyTarget(name: String) = "apply_target_$name"
+    const val OPT_THEME_BACKGROUND = "opt_theme_background"
+    const val OPT_PHONE_WALLPAPER = "opt_phone_wallpaper"
+    const val OPT_LOCK_SCREEN = "opt_lock_screen"
+    const val OPT_LOCK_WALLPAPER = "opt_lock_wallpaper"
+    const val APPLY_CANCEL = "apply_cancel"
+    const val APPLY_CONFIRM = "apply_confirm"
+    const val BROWSE_THEMES = "browse_themes"
+    const val LOCK_FOLLOW_HOME = "lock_follow_home"
+    fun drawerStyle(name: String) = "drawer_style_$name"
+    fun iconStyle(name: String) = "icon_style_$name"
+    fun addWidget(name: String) = "add_widget_$name"
 }
 
 val DimAlphaKey = SemanticsPropertyKey<Float>("DimAlpha")

@@ -36,6 +36,14 @@ fun DrawScope.drawBackdrop(backdrop: Backdrop, palette: Palette, accent: Color) 
         Backdrop.HORIZON -> drawHorizon(upper, lower, Color(palette.onSurface))
         Backdrop.WAVES -> drawWaves(upper, accent)
         Backdrop.STARS -> drawStars(upper, Color(palette.onSurface))
+        Backdrop.AURORA -> drawAurora(upper, lower)
+        Backdrop.DUNES -> drawDunes(upper, lower)
+        Backdrop.PEAKS -> drawPeaks(upper, lower)
+        Backdrop.ECLIPSE -> drawEclipse(upper, Color(palette.backgroundBottom))
+        Backdrop.BOKEH -> drawBokeh(upper, lower)
+        Backdrop.GRID -> drawGrid(upper, lower, Color(palette.backgroundBottom))
+        Backdrop.ARCS -> drawArcs(upper, lower, accent)
+        Backdrop.RAIN -> drawRain(upper)
     }
 }
 
@@ -168,4 +176,160 @@ private fun DrawScope.drawStarPoint(c: Offset, r: Float, ink: Color) {
         close()
     }
     drawPath(path, ink.copy(alpha = 0.9f))
+}
+
+/** Three soft curtains of light across the upper sky, alternating the two rim colours. */
+private fun DrawScope.drawAurora(upper: Color, lower: Color) {
+    val w = size.width
+    val h = size.height
+    val steps = 32
+    listOf(Triple(0.10f, upper, 0.0f), Triple(0.18f, lower, 1.7f), Triple(0.26f, upper, 3.1f)).forEachIndexed { i, (top, color, phase) ->
+        val bandH = h * (0.22f - i * 0.03f)
+        val amp = h * 0.035f
+        val path = Path()
+        for (k in 0..steps) {
+            val x = w * k / steps
+            val y = h * top + amp * sin(x / w * 2f * PI.toFloat() * 1.3f + phase)
+            if (k == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        }
+        for (k in steps downTo 0) {
+            val x = w * k / steps
+            val y = h * top + bandH + amp * 0.6f * sin(x / w * 2f * PI.toFloat() * 1.3f + phase + 0.8f)
+            path.lineTo(x, y)
+        }
+        path.close()
+        val yTop = h * top - amp
+        drawPath(path, Brush.verticalGradient(listOf(Color.Transparent, color.copy(alpha = 0.30f), color.copy(alpha = 0.05f)), yTop, yTop + bandH + amp * 2))
+    }
+}
+
+/** Layered dunes rising from the bottom with a low sun behind them. */
+private fun DrawScope.drawDunes(upper: Color, lower: Color) {
+    val w = size.width
+    val h = size.height
+    val sun = Offset(w * 0.68f, h * 0.58f)
+    val sunR = min(w, h) * 0.16f
+    drawCircle(Brush.radialGradient(listOf(upper.copy(alpha = 0.35f), Color.Transparent), sun, sunR * 2.2f), sunR * 2.2f, sun)
+    drawCircle(upper.copy(alpha = 0.22f), sunR, sun)
+    listOf(0.64f to 0.10f, 0.72f to 0.16f, 0.80f to 0.24f, 0.89f to 0.34f).forEachIndexed { i, (y0, alpha) ->
+        val color = if (i % 2 == 0) lower else upper
+        val path = Path().apply {
+            moveTo(0f, h * y0)
+            cubicTo(w * 0.25f, h * (y0 - 0.06f + i * 0.01f), w * 0.55f, h * (y0 + 0.05f), w, h * (y0 - 0.03f))
+            lineTo(w, h)
+            lineTo(0f, h)
+            close()
+        }
+        drawPath(path, Brush.verticalGradient(listOf(color.copy(alpha = alpha), color.copy(alpha = alpha * 0.4f)), h * (y0 - 0.06f), h))
+    }
+}
+
+/** Two mountain ranges with a fine ridge line on the front range. */
+private fun DrawScope.drawPeaks(upper: Color, lower: Color) {
+    val w = size.width
+    val h = size.height
+    fun range(points: List<Pair<Float, Float>>): Path = Path().apply {
+        moveTo(0f, h)
+        points.forEach { (fx, fy) -> lineTo(w * fx, h * fy) }
+        lineTo(w, h)
+        close()
+    }
+    val back = listOf(0f to 0.66f, 0.18f to 0.55f, 0.34f to 0.63f, 0.52f to 0.48f, 0.7f to 0.6f, 0.86f to 0.52f, 1f to 0.6f)
+    val front = listOf(0f to 0.78f, 0.14f to 0.7f, 0.3f to 0.76f, 0.46f to 0.64f, 0.62f to 0.74f, 0.8f to 0.67f, 1f to 0.76f)
+    drawPath(range(back), Brush.verticalGradient(listOf(upper.copy(alpha = 0.22f), upper.copy(alpha = 0.04f)), h * 0.48f, h))
+    drawPath(range(front), Brush.verticalGradient(listOf(lower.copy(alpha = 0.30f), lower.copy(alpha = 0.08f)), h * 0.64f, h))
+    val ridge = Path().apply { front.forEachIndexed { i, (fx, fy) -> if (i == 0) moveTo(w * fx, h * fy) else lineTo(w * fx, h * fy) } }
+    drawPath(ridge, upper.copy(alpha = 0.55f), style = Stroke(1.dp.toPx()))
+}
+
+/** A dark disc with a glowing corona, in the empty middle of the screen. */
+private fun DrawScope.drawEclipse(corona: Color, disc: Color) {
+    val c = Offset(size.width * 0.5f, size.height * 0.56f)
+    val r = min(size.width, size.height) * 0.26f
+    drawCircle(
+        Brush.radialGradient(
+            0f to Color.Transparent, 0.62f to Color.Transparent, 0.66f to corona.copy(alpha = 0.55f),
+            0.75f to corona.copy(alpha = 0.18f), 1f to Color.Transparent,
+            center = c, radius = r * 1.55f,
+        ),
+        r * 1.55f, c,
+    )
+    drawCircle(disc, r, c)
+    drawCircle(
+        Brush.linearGradient(listOf(corona.copy(alpha = 0.9f), corona.copy(alpha = 0.15f)), c - Offset(r, r), c + Offset(r, r)),
+        r, c, style = Stroke(1.5.dp.toPx()),
+    )
+}
+
+/** Out-of-focus light: soft discs at fixed seeded positions. */
+private fun DrawScope.drawBokeh(upper: Color, lower: Color) {
+    val rnd = java.util.Random(7L)
+    val unit = min(size.width, size.height)
+    repeat(16) { i ->
+        val c = Offset(rnd.nextFloat() * size.width, rnd.nextFloat() * size.height)
+        val r = unit * (0.04f + rnd.nextFloat() * 0.12f)
+        val color = if (i % 3 == 0) lower else upper
+        val a = 0.06f + rnd.nextFloat() * 0.14f
+        drawCircle(Brush.radialGradient(listOf(color.copy(alpha = a), color.copy(alpha = a * 0.6f), Color.Transparent), c, r), r, c)
+    }
+}
+
+/** Retro sun cut by bands, over a perspective grid floor. */
+private fun DrawScope.drawGrid(sun: Color, line: Color, bg: Color) {
+    val w = size.width
+    val h = size.height
+    val horizon = h * 0.6f
+    val r = min(w, h) * 0.24f
+    val c = Offset(w / 2f, horizon)
+    clipRect(bottom = horizon) {
+        drawCircle(Brush.verticalGradient(listOf(sun.copy(alpha = 0.85f), line.copy(alpha = 0.7f)), c.y - r, c.y), r, c)
+        val band = r * 0.06f
+        listOf(0.22f, 0.4f, 0.56f, 0.7f, 0.82f).forEachIndexed { i, f ->
+            val y = c.y - r * (1f - f)
+            drawRect(bg, Offset(c.x - r, y), androidx.compose.ui.geometry.Size(r * 2, band * (1f + i * 0.35f)))
+        }
+    }
+    drawRect(Brush.verticalGradient(listOf(line.copy(alpha = 0.16f), Color.Transparent), horizon, h), Offset(0f, horizon))
+    val stroke = 1.dp.toPx()
+    var y = horizon
+    var gap = h * 0.012f
+    while (y < h) {
+        drawLine(line.copy(alpha = 0.5f), Offset(0f, y), Offset(w, y), stroke)
+        y += gap
+        gap *= 1.35f
+    }
+    for (k in -8..8) {
+        val xBottom = w / 2f + k * w * 0.16f
+        drawLine(line.copy(alpha = 0.45f), Offset(w / 2f + k * w * 0.02f, horizon), Offset(xBottom, h), stroke)
+    }
+}
+
+/** Bauhaus-style geometry: a filled quarter circle, an open half ring and a small solid disc. */
+private fun DrawScope.drawArcs(upper: Color, lower: Color, accent: Color) {
+    val w = size.width
+    val h = size.height
+    val unit = min(w, h)
+    val stroke = 1.dp.toPx()
+    drawCircle(lower.copy(alpha = 0.32f), unit * 0.5f, Offset(0f, h))
+    drawCircle(upper.copy(alpha = 0.5f), unit * 0.62f, Offset(0f, h), style = Stroke(stroke))
+    drawCircle(upper.copy(alpha = 0.3f), unit * 0.74f, Offset(0f, h), style = Stroke(stroke))
+    drawArc(upper.copy(alpha = 0.6f), 90f, 180f, false, Offset(w - unit * 0.22f, h * 0.36f), androidx.compose.ui.geometry.Size(unit * 0.44f, unit * 0.44f), style = Stroke(stroke * 1.5f))
+    drawCircle(accent.copy(alpha = 0.75f), unit * 0.05f, Offset(w * 0.78f, h * 0.7f))
+}
+
+/** Fine slanting streaks that fade at both ends. */
+private fun DrawScope.drawRain(color: Color) {
+    val rnd = java.util.Random(42L)
+    val w = size.width
+    val h = size.height
+    val stroke = 1.dp.toPx()
+    repeat(70) {
+        val x = rnd.nextFloat() * (w * 1.2f)
+        val y = rnd.nextFloat() * h
+        val len = h * (0.03f + rnd.nextFloat() * 0.09f)
+        val start = Offset(x, y)
+        val end = Offset(x - len * 0.27f, y + len)
+        val a = 0.10f + rnd.nextFloat() * 0.30f
+        drawLine(Brush.linearGradient(listOf(Color.Transparent, color.copy(alpha = a), Color.Transparent), start, end), start, end, stroke)
+    }
 }

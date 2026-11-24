@@ -9,6 +9,7 @@ import com.versity.launcher.ui.components.LauncherMenuItem
 import com.versity.launcher.ui.home.HomeBackground
 import androidx.compose.ui.graphics.Color
 import com.versity.launcher.data.LauncherSettings
+import com.versity.launcher.data.DrawerStyle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,9 +59,14 @@ fun AppDrawerContent(
 ) {
     val colors = LauncherTheme.colors
     Box(modifier.fillMaxSize()) {
-    // Same background as home, under a dark scrim so icons and labels stay readable on any wallpaper.
-    HomeBackground(settings)
-    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.75f)))
+    if (settings.drawerStyle == DrawerStyle.THEMED) {
+        // Same background as home, under a dark scrim so icons and labels stay readable on any wallpaper.
+        HomeBackground(settings)
+        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.75f)))
+    } else {
+        // Plain: a neutral surface that follows the system light or dark mode.
+        Box(Modifier.fillMaxSize().background(colors.backgroundBottom))
+    }
     Column(
         Modifier
             .fillMaxSize()
@@ -85,7 +91,7 @@ fun AppDrawerContent(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.navigationBars),
                 ) {
-                    items(state.apps, key = { "${it.packageName}/${it.activityName}" }) { app ->
+                    items(state.apps, key = { it.key }) { app ->
                         AppCell(app, onLaunch, app.key in state.favouriteKeys, state.homeFull, onToggleFavourite)
                     }
                 }

@@ -172,6 +172,46 @@ class SettingsRepositoryTest {
         assertEquals(Ornament.CORNERS, repo.settings.first().ornament)
     }
 
+    @Test fun lockThemeRoundTripsAndClears() = runTest {
+        val repo = newRepo()
+        assertNull(repo.settings.first().lockThemeId)
+        repo.setLockThemeId("noir")
+        assertEquals("noir", repo.settings.first().lockThemeId)
+        repo.setLockThemeId(null)
+        assertNull(repo.settings.first().lockThemeId)
+    }
+
+    @Test fun drawerAndIconStylesRoundTrip() = runTest {
+        val repo = newRepo()
+        repo.setDrawerStyle(DrawerStyle.THEMED)
+        repo.setIconStyle(IconStyle.THEMED)
+        val s = repo.settings.first()
+        assertEquals(DrawerStyle.THEMED, s.drawerStyle)
+        assertEquals(IconStyle.THEMED, s.iconStyle)
+    }
+
+    @Test fun applyingAThemeLeavesDrawerIconsAndLockThemeAlone() = runTest {
+        val repo = newRepo()
+        repo.setDrawerStyle(DrawerStyle.PLAIN)
+        repo.setIconStyle(IconStyle.ORIGINAL)
+        repo.setLockThemeId("noir")
+        repo.applyTheme(ThemeBundle("t", "T", "tag", "ocean", "outfit", ClockStyle.ANALOGUE, 20, null, HomeLayout.CLASSIC, Backdrop.WAVES))
+        val s = repo.settings.first()
+        assertEquals(DrawerStyle.PLAIN, s.drawerStyle)
+        assertEquals(IconStyle.ORIGINAL, s.iconStyle)
+        assertEquals("noir", s.lockThemeId)
+    }
+
+    @Test fun applyThemeCanSwapThePhotoForTheThemeBackground() = runTest {
+        val repo = newRepo()
+        repo.setWallpaperUri("content://w")
+        val t = ThemeBundle("t", "T", "tag", "ocean", "outfit", ClockStyle.ANALOGUE, 20, null, HomeLayout.CLASSIC, Backdrop.WAVES)
+        repo.applyTheme(t)
+        assertEquals("content://w", repo.settings.first().wallpaperUri)
+        repo.applyTheme(t, clearWallpaper = true)
+        assertNull(repo.settings.first().wallpaperUri)
+    }
+
     @Test fun backdropRoundTripsForEveryBackdrop() = runTest {
         val repo = newRepo()
         assertEquals(LauncherSettings.DEFAULT.backdrop, repo.settings.first().backdrop)

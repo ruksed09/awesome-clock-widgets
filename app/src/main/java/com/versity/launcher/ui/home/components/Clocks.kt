@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Text
 import com.versity.launcher.ui.TestTags
 import com.versity.launcher.ui.theme.LauncherTheme
+import com.versity.launcher.ui.theme.LiningFigures
 import java.time.LocalTime
 import kotlin.math.cos
 import kotlin.math.min
@@ -49,6 +50,7 @@ fun StackedClock(
             fontWeight = FontWeight.Light,
             fontSize = size,
             lineHeight = size * 0.95f,
+            fontFeatureSettings = LiningFigures,
         )
         Column(horizontalAlignment = if (centered) Alignment.CenterHorizontally else Alignment.Start) {
             Text(hourText(time, is24Hour), style = style)
@@ -73,7 +75,7 @@ fun SingleLineClock(
     BoxWithConstraints(modifier.testTag(TestTags.CLOCK_SINGLE_LINE), contentAlignment = if (centered) Alignment.Center else Alignment.TopStart) {
         val size = (maxWidth.value * widthFactor).coerceIn(sizeRange.start, sizeRange.endInclusive).sp
         val colors = LauncherTheme.colors
-        val base = TextStyle(fontFamily = LauncherTheme.font, fontWeight = weight, fontSize = size, lineHeight = size * 1.05f)
+        val base = TextStyle(fontFamily = LauncherTheme.font, fontWeight = weight, fontSize = size, lineHeight = size * 1.05f, fontFeatureSettings = LiningFigures)
         Text(
             text = "${hourText(time, is24Hour)}:${minuteText(time)}",
             maxLines = 1,

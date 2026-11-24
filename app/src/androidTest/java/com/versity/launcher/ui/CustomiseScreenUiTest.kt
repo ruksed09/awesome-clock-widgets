@@ -10,6 +10,9 @@ import androidx.compose.ui.test.performScrollTo
 import com.versity.launcher.data.LauncherSettings
 import com.versity.launcher.ui.settings.CustomiseActions
 import com.versity.launcher.ui.settings.CustomiseContent
+import com.versity.launcher.ui.settings.CustomiseTab
+import com.versity.launcher.ui.settings.ApplyTarget
+import com.versity.launcher.ui.settings.ThemeApplyRequest
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -26,7 +29,7 @@ class CustomiseScreenUiTest {
             override fun onPalette(id: String) { settings = settings.copy(paletteId = id) }
             override fun onReset() { settings = LauncherSettings.DEFAULT }
         }
-        rule.setContent { CustomiseContent(settings, actions) }
+        rule.setContent { CustomiseContent(settings, actions, initialTab = CustomiseTab.STYLE) }
         return { settings }
     }
 
@@ -53,7 +56,7 @@ class CustomiseScreenUiTest {
     @Test fun previewLockButtonCallsTheAction() {
         var previews = 0
         val actions = object : CustomiseActions { override fun onPreviewLock() { previews++ } }
-        rule.setContent { CustomiseContent(LauncherSettings.DEFAULT, actions) }
+        rule.setContent { CustomiseContent(LauncherSettings.DEFAULT, actions, initialTab = CustomiseTab.LOCK) }
         rule.onNodeWithTag(TestTags.PREVIEW_LOCK).performScrollTo().performClick()
         assertEquals(1, previews)
     }
@@ -61,7 +64,7 @@ class CustomiseScreenUiTest {
     @Test fun setLockWallpaperOpensDialogWithoutApplyingYet() {
         var applied = 0
         val actions = object : CustomiseActions { override fun onSetLockWallpaper() { applied++ } }
-        rule.setContent { CustomiseContent(LauncherSettings.DEFAULT, actions) }
+        rule.setContent { CustomiseContent(LauncherSettings.DEFAULT, actions, initialTab = CustomiseTab.LOCK) }
         rule.onNodeWithTag(TestTags.SET_LOCK_WALLPAPER).performScrollTo().performClick()
         rule.onNodeWithTag(TestTags.LOCK_WALLPAPER_CONFIRM).assertExists()
         assertEquals(0, applied)
@@ -70,7 +73,7 @@ class CustomiseScreenUiTest {
     @Test fun confirmingTheDialogAppliesOnce() {
         var applied = 0
         val actions = object : CustomiseActions { override fun onSetLockWallpaper() { applied++ } }
-        rule.setContent { CustomiseContent(LauncherSettings.DEFAULT, actions) }
+        rule.setContent { CustomiseContent(LauncherSettings.DEFAULT, actions, initialTab = CustomiseTab.LOCK) }
         rule.onNodeWithTag(TestTags.SET_LOCK_WALLPAPER).performScrollTo().performClick()
         rule.onNodeWithTag(TestTags.LOCK_WALLPAPER_CONFIRM).performClick()
         rule.waitForIdle()
@@ -81,10 +84,49 @@ class CustomiseScreenUiTest {
     @Test fun cancellingTheDialogAppliesNothing() {
         var applied = 0
         val actions = object : CustomiseActions { override fun onSetLockWallpaper() { applied++ } }
-        rule.setContent { CustomiseContent(LauncherSettings.DEFAULT, actions) }
+        rule.setContent { CustomiseContent(LauncherSettings.DEFAULT, actions, initialTab = CustomiseTab.LOCK) }
         rule.onNodeWithTag(TestTags.SET_LOCK_WALLPAPER).performScrollTo().performClick()
         rule.onNodeWithTag(TestTags.LOCK_WALLPAPER_CANCEL).performClick()
         rule.waitForIdle()
         assertEquals(0, applied)
     }
+
+    @Test fun tabsSwitchContent() {
+        rule.setContent { CustomiseContent(LauncherSettings.DEFAULT, object : CustomiseActions {}) }
+        rule.onNodeWithTag(TestTags.theme("celestial")).assertExists()
+        rule.onNodeWithTag(TestTags.tab(CustomiseTab.STYLE.name)).performClick()
+        rule.onNodeWithTag(TestTags.PREVIEW).assertExists()
+        rule.onNodeWithTag(TestTags.tab(CustomiseTab.LOCK.name)).performClick()
+        rule.onNodeWithTag(TestTags.SET_LOCK_WALLPAPER).assertExists()
+    }
+
+    @Test fun applyingAThemeToTheLockScreenOnlySendsThatChoice() {
+        var request: ThemeApplyRequest? = null
+        val actions = object : CustomiseActions { override fun onApplyTheme(request: ThemeApplyRequest) { this@CustomiseScreenUiTest.lastRequest = request } }
+        rule.setContent { CustomiseContent(LauncherSettings.DEFAULT, actions) }
+        rule.onNodeWithTag(TestTags.theme("celestial")).performClick()
+        rule.onNodeWithTag(TestTags.applyTarget(ApplyTarget.LOCK.name)).performClick()
+        rule.onNodeWithTag(TestTags.OPT_LOCK_WALLPAPER).performScrollTo().performClick()
+        rule.onNodeWithTag(TestTags.APPLY_CONFIRM).performClick()
+        rule.waitForIdle()
+        request = lastRequest
+        assertEquals("celestial", request?.theme?.id)
+        assertEquals(ApplyTarget.LOCK, request?.target)
+        assertEquals(false, request?.setPhoneWallpaper)
+        assertEquals(false, request?.setLockWallpaper)
+        assertEquals(true, request?.showLockScreen)
+        rule.onNodeWithTag(TestTags.APPLY_SHEET).assertDoesNotExist()
+    }
+
+    @Test fun cancellingTheApplySheetAppliesNothing() {
+        var applied = 0
+        val actions = object : CustomiseActions { override fun onApplyTheme(request: ThemeApplyRequest) { applied++ } }
+        rule.setContent { CustomiseContent(LauncherSettings.DEFAULT, actions) }
+        rule.onNodeWithTag(TestTags.theme("noir")).performScrollTo().performClick()
+        rule.onNodeWithTag(TestTags.APPLY_CANCEL).performClick()
+        rule.waitForIdle()
+        assertEquals(0, applied)
+    }
+
+    private var lastRequest: ThemeApplyRequest? = null
 }
