@@ -17,3 +17,6 @@
 
 **Install**
 Download `versity-0.2.0.apk` below and open it on your phone. Android will ask you to allow installs from your browser or file manager the first time.
+
+**Verify**
+Signed by `CN=Versity`. Certificate SHA-256: `58:26:fd:21:0b:d1:98:08:c4:ef:e5:bc:75:63:e9:ef:9e:30:b3:dd:3a:f3:dc:f8:fb:b5:d5:35:6a:2a:f3:94`
