@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentWidth
@@ -40,7 +41,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.platform.testTag
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import com.versity.launcher.domain.lockLook
+import com.versity.launcher.system.LockWallpaper
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
@@ -78,6 +87,9 @@ import com.versity.launcher.ui.studio.StudioType
 import com.versity.launcher.ui.studio.ThemeToggleIcon
 
 internal val Gutter = 16.dp
+
+/** True inside a sheet shown as a centred dialog (tablets) rather than from the bottom edge. */
+internal val LocalSheetCentred = staticCompositionLocalOf { false }
 
 /** Settings pages stay at a comfortable reading width on tablets and wide windows, centred. */
 internal fun Modifier.readableWidth(max: Dp = 720.dp): Modifier =
@@ -124,11 +136,67 @@ internal fun uiModeLabel(m: UiMode) = when (m) {
     UiMode.DARK -> "Dark"
 }
 
-/** The theme the settings currently match, or null for a custom mix. */
-internal fun currentHomeTheme(s: LauncherSettings): ThemeBundle? = ThemePresets.themes.firstOrNull { it.matches(s) }
+/**
+ * The theme the user applied to the home screen, while the look still matches it. Nothing counts as
+ * applied until the user applies a theme, so a fresh install shows no theme selected.
+ */
+internal fun currentHomeTheme(s: LauncherSettings): ThemeBundle? =
+    s.appliedThemeId?.let(ThemePresets::theme)?.takeIf { it.matches(s) }
 
 internal fun lockThemeLabel(s: LauncherSettings): String =
     s.lockThemeId?.let(ThemePresets::theme)?.name ?: "Same as home screen"
+
+/** One line for the hub: which theme is on the home screen, if any. */
+internal fun homeSummary(s: LauncherSettings): String = when {
+    currentHomeTheme(s) != null -> currentHomeTheme(s)!!.name
+    s.appliedThemeId != null -> "Customised"
+    else -> "No theme yet"
+}
+
+/** One line for the hub: what the lock screen shows. */
+internal fun lockSummary(s: LauncherSettings, isDefault: Boolean): String = when {
+    s.lockThemeId != null -> ThemePresets.theme(s.lockThemeId)?.name ?: "Custom"
+    s.lockStyleEnabled && isDefault && currentHomeTheme(s) != null -> "Same as home"
+    s.phoneLockWallpaper != null -> "Wallpaper set"
+    else -> "Not set"
+}
+
+/** Ids of the wallpapers on the phone now, read again whenever the screen comes back. */
+@Composable
+internal fun rememberPhoneWallpaperIds(): Pair<Int?, Int?> {
+    val context = LocalContext.current
+    var ids by remember { mutableStateOf(LockWallpaper.currentIds(context)) }
+    LifecycleResumeEffect(Unit) {
+        ids = LockWallpaper.currentIds(context)
+        onPauseOrDispose { }
+    }
+    return ids
+}
+
+/** Where a wallpaper is showing now. */
+internal data class Places(val home: Boolean, val lock: Boolean) {
+    val any: Boolean get() = home || lock
+    val label: String get() = when {
+        home && lock -> "Home and lock"
+        home -> "Home screen"
+        lock -> "Lock screen"
+        else -> ""
+    }
+}
+
+/**
+ * Where [uri] shows: on the phone, when Versity set it there and it is still the phone's wallpaper,
+ * or on Versity's own home and lock screens, when Versity is the home app and the user chose it.
+ */
+internal fun placesOf(uri: String, s: LauncherSettings, isDefault: Boolean, ids: Pair<Int?, Int?>): Places {
+    fun stillThere(recorded: Int?, now: Int?) = recorded != null && (now == null || now == recorded)
+    val phoneHome = s.phoneHomeWallpaper == uri && stillThere(s.phoneHomeWallpaperId, ids.first)
+    val phoneLock = s.phoneLockWallpaper == uri && stillThere(s.phoneLockWallpaperId, ids.second)
+    val versityHome = isDefault && s.wallpaperChosen && s.wallpaperUri == uri
+    val versityLock = isDefault && s.lockStyleEnabled && s.lockLook().wallpaperUri == uri &&
+        (s.wallpaperChosen || s.lockWallpaperUri != null || s.lockThemeId != null)
+    return Places(phoneHome || versityHome, phoneLock || versityLock)
+}
 
 // ---------------------------------------------------------------- Headers
 
@@ -211,17 +279,17 @@ internal fun SheetPreviews(home: LauncherSettings, lock: LauncherSettings, homeC
     }
 }
 
-/** Small "Home" / "Lock" markers on a preview's corner, showing where it is applied. */
+/** A "Current" marker on a preview's corner, when it is applied somewhere. */
 @Composable
-internal fun AppliedTags(onHome: Boolean, onLock: Boolean, modifier: Modifier = Modifier) {
-    if (!onHome && !onLock) return
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        listOfNotNull("Home".takeIf { onHome }, "Lock".takeIf { onLock }).forEach {
-            Text(
-                it, color = Color(0xFF17171A), fontSize = 10.sp, fontWeight = FontWeight.Medium, fontFamily = Studio.font,
-                modifier = Modifier.background(Color.White.copy(alpha = 0.92f), RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 1.dp),
-            )
-        }
+internal fun CurrentTag(show: Boolean, modifier: Modifier = Modifier) {
+    if (!show) return
+    Row(
+        modifier.background(Color.White.copy(alpha = 0.94f), RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Box(Modifier.size(6.dp).background(Color(0xFF2FA866), RoundedCornerShape(3.dp)))
+        Text("Current", color = Color(0xFF17171A), fontSize = 10.sp, fontWeight = FontWeight.Medium, fontFamily = Studio.font)
     }
 }
 
@@ -251,14 +319,18 @@ internal fun <T : Any> SheetHost(visible: Boolean, onDismiss: () -> Unit, key: T
                     .background(c.scrim)
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDismiss),
             )
+            // On tablets the sheet becomes a centred dialog: a bottom sheet across a wide screen reads poorly.
+            val config = LocalConfiguration.current
+            val centred = config.screenWidthDp >= 720 && config.screenHeightDp >= 560
             Box(
                 Modifier
-                    .align(Alignment.BottomCenter)
+                    .align(if (centred) Alignment.Center else Alignment.BottomCenter)
+                    .padding(if (centred) 24.dp else 0.dp)
                     .animateEnterExit(
-                        enter = slideInVertically(tween(StudioMotion.SLOW, easing = StudioMotion.Enter)) { it / 3 } + fadeIn(tween(StudioMotion.STANDARD)),
-                        exit = slideOutVertically(tween(200, easing = StudioMotion.Exit)) { it / 4 } + fadeOut(tween(200)),
+                        enter = slideInVertically(tween(StudioMotion.SLOW, easing = StudioMotion.Enter)) { if (centred) it / 12 else it / 3 } + fadeIn(tween(StudioMotion.STANDARD)),
+                        exit = slideOutVertically(tween(200, easing = StudioMotion.Exit)) { if (centred) it / 16 else it / 4 } + fadeOut(tween(200)),
                     ),
-            ) { shown?.let { content(it) } }
+            ) { CompositionLocalProvider(LocalSheetCentred provides centred) { shown?.let { content(it) } } }
         }
     }
 }
@@ -273,25 +345,33 @@ internal fun SheetScaffold(
     onDismiss: () -> Unit,
     confirm: String,
     onConfirm: () -> Unit,
+    secondary: Pair<String, () -> Unit>? = null,
     body: @Composable () -> Unit,
 ) {
     val c = Studio.colors
     BackHandler(onBack = onDismiss)
-    val shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+    val centred = LocalSheetCentred.current
+    val shape = if (centred) RoundedCornerShape(16.dp) else RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+    val maxHeight = (LocalConfiguration.current.screenHeightDp * if (centred) 0.88f else 0.94f).dp
     Column(
         Modifier
             .testTag(tag)
             .semantics { paneTitle = title }
-            .widthIn(max = 560.dp)
+            .widthIn(max = if (centred) 620.dp else 560.dp)
+            .heightIn(max = maxHeight)
             .fillMaxWidth()
             .clip(shape)
             .background(c.surface)
             .border(1.dp, c.line, shape)
-            .windowInsetsPadding(WindowInsets.navigationBars)
+            .then(if (centred) Modifier else Modifier.windowInsetsPadding(WindowInsets.navigationBars))
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { },
     ) {
-        Box(Modifier.fillMaxWidth().padding(top = 8.dp), contentAlignment = Alignment.Center) {
-            Box(Modifier.size(width = 32.dp, height = 4.dp).background(c.lineStrong, RoundedCornerShape(2.dp)))
+        if (!centred) {
+            Box(Modifier.fillMaxWidth().padding(top = 8.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(width = 32.dp, height = 4.dp).background(c.lineStrong, RoundedCornerShape(2.dp)))
+            }
+        } else {
+            Spacer(Modifier.height(10.dp))
         }
         Column(
             Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 12.dp, top = 4.dp, bottom = 8.dp),
@@ -313,6 +393,10 @@ internal fun SheetScaffold(
             horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            if (secondary != null) {
+                StudioTextButton(secondary.first, color = c.danger, onClick = secondary.second)
+                Spacer(Modifier.weight(1f))
+            }
             StudioTextButton("Cancel", Modifier.testTag(TestTags.APPLY_CANCEL), onClick = onDismiss)
             StudioPrimaryButton(confirm, Modifier.testTag(TestTags.APPLY_CONFIRM), onClick = onConfirm)
         }

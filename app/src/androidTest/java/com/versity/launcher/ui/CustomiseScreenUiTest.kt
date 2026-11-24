@@ -148,7 +148,7 @@ class CustomiseScreenUiTest {
         rule.onNodeWithTag(TestTags.applyTarget(ApplyTarget.LOCK.name)).performClick()
         rule.onNodeWithTag(TestTags.APPLY_CONFIRM).performClick()
         rule.waitForIdle()
-        assertEquals("moon_tide", lastWallpaper?.wallpaper?.id)
+        assertEquals(com.versity.launcher.data.BundledWallpaper.uri("moon_tide"), lastWallpaper?.wallpaper?.uri)
         assertEquals(ApplyTarget.LOCK, lastWallpaper?.target)
         assertEquals(false, lastWallpaper?.setPhoneWallpaper)
         assertEquals(true, lastWallpaper?.setLockWallpaper)

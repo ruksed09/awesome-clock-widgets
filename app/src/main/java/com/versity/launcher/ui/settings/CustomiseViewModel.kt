@@ -36,5 +36,9 @@ class CustomiseViewModel(private val repo: SettingsRepository) : ViewModel() {
         lock: com.versity.launcher.data.ClockPlacement?,
         widgets: List<com.versity.launcher.data.HomeWidget>,
     ) = viewModelScope.launch { repo.setArrangement(home, lock, widgets) }
+    fun recordPhoneWallpapers(home: Pair<String, Int>?, lock: Pair<String, Int>?) =
+        viewModelScope.launch { repo.recordPhoneWallpapers(home, lock) }
+    fun setPhotos(photos: List<String>) = viewModelScope.launch { repo.setPhotos(photos) }
+    fun setAutoUpdateCheck(enabled: Boolean) = viewModelScope.launch { repo.setAutoUpdateCheck(enabled) }
     fun reset() = viewModelScope.launch { repo.reset() }
 }

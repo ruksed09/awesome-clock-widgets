@@ -40,6 +40,7 @@ import com.versity.launcher.R
 import com.versity.launcher.data.LauncherSettings
 import com.versity.launcher.domain.ThemePresets
 import com.versity.launcher.domain.Wallpapers
+import com.versity.launcher.system.UpdateState
 import com.versity.launcher.ui.TestTags
 import com.versity.launcher.ui.home.components.WidgetView
 import com.versity.launcher.ui.studio.Glyph
@@ -57,9 +58,15 @@ import com.versity.launcher.widget.WidgetType
 private data class NavEntry(val page: CustomisePage, val title: String, val subtitle: String)
 
 @Composable
-internal fun HubPage(settings: LauncherSettings, isDefault: Boolean, go: (CustomisePage) -> Unit, onSetDefault: () -> Unit) {
+internal fun HubPage(
+    settings: LauncherSettings,
+    isDefault: Boolean,
+    go: (CustomisePage) -> Unit,
+    onSetDefault: () -> Unit,
+    update: UpdateState = UpdateState.Idle,
+    updateActions: UpdateActions = UpdateActions({}, {}, {}),
+) {
     val c = Studio.colors
-    val home = currentHomeTheme(settings)
     val entries = listOf(
         NavEntry(CustomisePage.THEMES, "Themes", "${ThemePresets.themes.size} complete looks"),
         NavEntry(CustomisePage.WALLPAPERS, "Wallpapers", "${Wallpapers.all.size} images, or your own photo"),
@@ -79,7 +86,8 @@ internal fun HubPage(settings: LauncherSettings, isDefault: Boolean, go: (Custom
                 .padding(start = Gutter, end = Gutter, top = 8.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            AppliedSummary(home?.name ?: "Your own mix", settings.lockThemeId?.let(ThemePresets::theme)?.name ?: "Same as home")
+            UpdateBanner(update, updateActions)
+            AppliedSummary(homeSummary(settings), lockSummary(settings, isDefault))
             entries.chunked(columns).forEach { row ->
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     row.forEach { e -> NavCard(e, Modifier.weight(1f)) { go(e.page) } }

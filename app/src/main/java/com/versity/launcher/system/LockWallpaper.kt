@@ -33,22 +33,33 @@ import kotlinx.coroutines.withContext
 object LockWallpaper {
     /**
      * [which] is [WallpaperManager.FLAG_LOCK] (default), [WallpaperManager.FLAG_SYSTEM] for the home
-     * wallpaper, or both OR-ed together.
+     * wallpaper, or both OR-ed together. Returns the id Android gave the new wallpaper, so Versity can
+     * tell later whether it is still the one on the phone.
      */
     suspend fun apply(
         context: Context,
         settings: LauncherSettings,
         which: Int = WallpaperManager.FLAG_LOCK,
-    ): Result<Unit> = withContext(Dispatchers.IO) {
+    ): Result<Int> = withContext(Dispatchers.IO) {
         runCatching {
             val manager = WallpaperManager.getInstance(context)
             check(manager.isWallpaperSupported) { "This device does not support changing the wallpaper." }
             check(manager.isSetWallpaperAllowed) { "Changing the wallpaper is not allowed on this device." }
             val (w, h) = portraitSize(context)
             manager.setBitmap(render(context, settings, w, h), null, true, which)
-            Unit
         }
     }
+
+    /**
+     * Ids of the wallpapers on the phone now: home, and lock (which is the home one when the lock screen
+     * has no wallpaper of its own). Null where they cannot be read.
+     */
+    fun currentIds(context: Context): Pair<Int?, Int?> = runCatching {
+        val manager = WallpaperManager.getInstance(context)
+        val home = manager.getWallpaperId(WallpaperManager.FLAG_SYSTEM).takeIf { it >= 0 }
+        val lock = manager.getWallpaperId(WallpaperManager.FLAG_LOCK).takeIf { it >= 0 } ?: home
+        home to lock
+    }.getOrDefault(null to null)
 
     private fun portraitSize(context: Context): Pair<Int, Int> {
         val windows = context.getSystemService(WindowManager::class.java)

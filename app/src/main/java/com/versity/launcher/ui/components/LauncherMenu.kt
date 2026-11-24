@@ -12,14 +12,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.versity.launcher.ui.theme.LauncherTheme
 
-/** Dropdown in the launcher's own style: 2dp corners, theme surface, thin border, no shadow. */
+/** Dropdown in the launcher's own style: modest corners, theme surface, hairline border, no shadow. */
 @Composable
 fun LauncherMenu(expanded: Boolean, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     val colors = LauncherTheme.colors
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(2.dp),
+        shape = RoundedCornerShape(10.dp),
         containerColor = colors.surface,
         tonalElevation = 0.dp,
         shadowElevation = 0.dp,
@@ -32,7 +32,7 @@ fun LauncherMenu(expanded: Boolean, onDismiss: () -> Unit, content: @Composable 
 fun LauncherMenuItem(label: String, enabled: Boolean = true, onClick: () -> Unit) {
     val colors = LauncherTheme.colors
     DropdownMenuItem(
-        text = { Text(label, fontFamily = LauncherTheme.font, fontSize = 13.sp) },
+        text = { Text(label, fontFamily = LauncherTheme.font, fontSize = 14.sp) },
         enabled = enabled,
         onClick = onClick,
         colors = MenuDefaults.itemColors(textColor = colors.onSurface, disabledTextColor = colors.muted),

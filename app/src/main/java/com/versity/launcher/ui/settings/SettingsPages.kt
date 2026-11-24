@@ -54,6 +54,7 @@ import com.versity.launcher.data.LauncherSettings
 import com.versity.launcher.data.Ornament
 import com.versity.launcher.data.UiMode
 import com.versity.launcher.domain.ThemePresets
+import com.versity.launcher.system.UpdateState
 import com.versity.launcher.ui.TestTags
 import com.versity.launcher.ui.components.HomePreview
 import com.versity.launcher.ui.components.LockPreview
@@ -98,27 +99,35 @@ internal fun SettingsPage(
     isDefault: Boolean,
     go: (CustomisePage) -> Unit,
     onReset: () -> Unit,
+    update: UpdateState = UpdateState.Idle,
+    updateActions: UpdateActions = UpdateActions({}, {}, {}),
+    versionName: String = "",
+    /** The page shown beside this list on tablets, highlighted here. */
+    selected: CustomisePage? = null,
 ) {
     val c = Studio.colors
     PageBody {
         StudioSection("Home screen") {
-            StudioRow("Clock", glyph = Glyph.CLOCK, value = clockStyleLabel(settings.clockStyle), modifier = Modifier.testTag(TestTags.nav(CustomisePage.CLOCK.name))) { go(CustomisePage.CLOCK) }
+            StudioRow(
+                "Clock", glyph = Glyph.CLOCK, value = clockStyleLabel(settings.clockStyle),
+                modifier = Modifier.testTag(TestTags.nav(CustomisePage.CLOCK.name)), selected = selected == CustomisePage.CLOCK,
+            ) { go(CustomisePage.CLOCK) }
             StudioRow(
                 "Colours and font", glyph = Glyph.PALETTE, divider = true,
                 value = "${ThemePresets.palette(settings.paletteId).name} · ${ThemePresets.font(settings.fontId).name}",
-                modifier = Modifier.testTag(TestTags.nav(CustomisePage.COLOURS.name)),
+                modifier = Modifier.testTag(TestTags.nav(CustomisePage.COLOURS.name)), selected = selected == CustomisePage.COLOURS,
             ) { go(CustomisePage.COLOURS) }
             StudioRow(
                 "Layout and position", glyph = Glyph.LAYOUT, divider = true,
                 value = layoutLabel(settings.layout) + if (settings.clockPlacement != null) " · moved" else "",
-                modifier = Modifier.testTag(TestTags.nav(CustomisePage.LAYOUT.name)),
+                modifier = Modifier.testTag(TestTags.nav(CustomisePage.LAYOUT.name)), selected = selected == CustomisePage.LAYOUT,
             ) { go(CustomisePage.LAYOUT) }
         }
         StudioSection("Lock screen") {
             StudioRow(
                 "Lock screen", glyph = Glyph.LOCK,
                 value = if (settings.lockStyleEnabled) lockThemeLabel(settings) else "Off",
-                modifier = Modifier.testTag(TestTags.nav(CustomisePage.LOCK.name)),
+                modifier = Modifier.testTag(TestTags.nav(CustomisePage.LOCK.name)), selected = selected == CustomisePage.LOCK,
             ) { go(CustomisePage.LOCK) }
         }
         StudioSection("Apps") {
@@ -126,15 +135,16 @@ internal fun SettingsPage(
                 "App drawer and icons", glyph = Glyph.APPS,
                 value = (if (settings.drawerStyle == DrawerStyle.PLAIN) "Plain" else "Themed") + " · " +
                     (if (settings.iconStyle == IconStyle.ORIGINAL) "Original icons" else "Tinted icons"),
-                modifier = Modifier.testTag(TestTags.nav(CustomisePage.DRAWER.name)),
+                modifier = Modifier.testTag(TestTags.nav(CustomisePage.DRAWER.name)), selected = selected == CustomisePage.DRAWER,
             ) { go(CustomisePage.DRAWER) }
         }
         StudioSection("Appearance") {
             Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                 StudioSegmented(UiMode.entries, settings.uiMode, ::uiModeLabel, { actions.onUiMode(it) }, tag = { TestTags.uiMode(it.name) })
-                StudioHint("Light or dark for Versity's own screens and the plain app drawer. System follows your phone.", Modifier.padding(bottom = 6.dp))
+                StudioHint("Light or dark for Versity's own screens. System follows your phone. The plain app drawer always follows your phone.", Modifier.padding(bottom = 6.dp))
             }
         }
+        UpdatesSection(update, versionName, settings.autoUpdateCheck, actions::onAutoUpdateCheck, updateActions)
         StudioSection("Versity") {
             StudioRow(
                 "Home app", glyph = Glyph.HOME,
@@ -142,7 +152,10 @@ internal fun SettingsPage(
                 chevron = !isDefault,
                 onClick = if (isDefault) null else actions::onSetDefaultLauncher,
             )
-            StudioRow("About", glyph = Glyph.INFO, divider = true, modifier = Modifier.testTag(TestTags.nav(CustomisePage.ABOUT.name))) { go(CustomisePage.ABOUT) }
+            StudioRow(
+                "About", glyph = Glyph.INFO, divider = true,
+                modifier = Modifier.testTag(TestTags.nav(CustomisePage.ABOUT.name)), selected = selected == CustomisePage.ABOUT,
+            ) { go(CustomisePage.ABOUT) }
             StudioRow(
                 "Reset everything", glyph = Glyph.RESET, divider = true, chevron = false, titleColor = c.danger,
                 modifier = Modifier.testTag(TestTags.RESET), onClick = onReset,
@@ -431,7 +444,7 @@ internal fun DrawerPage(settings: LauncherSettings, actions: CustomiseActions) {
                 { if (it == DrawerStyle.PLAIN) "Plain" else "Match theme" }, { actions.onDrawerStyle(it) },
                 tag = { TestTags.drawerStyle(it.name) },
             )
-            StudioHint("Plain stays neutral and follows Appearance. Themes never restyle it unless you choose Match theme.")
+            StudioHint("Plain follows your phone: its light or dark mode and, on Android 12 and newer, its wallpaper colours. Themes never restyle it unless you choose Match theme.")
         }
         StudioCard(title = "App icons") {
             StudioSegmented(
@@ -455,7 +468,7 @@ internal fun AboutPage(versionName: String) {
             StudioText("Versity", StudioType.heading)
             if (versionName.isNotBlank()) StudioText("Version $versionName", StudioType.small, c.muted)
             StudioText(
-                "Themes, wallpapers, clocks and widgets for your home and lock screens. Versity has no internet access: nothing you choose leaves your phone.",
+                "Themes, wallpapers, clocks and widgets for your home and lock screens. Versity goes online only to check GitHub for new versions, which you can turn off in Settings. Nothing you choose leaves your phone.",
                 StudioType.body,
             )
         }

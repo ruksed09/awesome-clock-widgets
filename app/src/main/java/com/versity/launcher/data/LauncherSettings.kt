@@ -94,11 +94,26 @@ data class LauncherSettings(
     val lockClockPlacement: ClockPlacement? = null,
     /** Widgets on Versity's own home screen, in drawing order. */
     val homeWidgets: List<HomeWidget> = emptyList(),
+    /** Theme the user applied to the home screen. Null until they apply one: nothing is pre-selected. */
+    val appliedThemeId: String? = null,
+    /** True once the user (or a theme they applied) chose the home wallpaper, rather than the default. */
+    val wallpaperChosen: Boolean = false,
+    /** What Versity last set as the phone's own home and lock wallpapers (bundled or photo URI)... */
+    val phoneHomeWallpaper: String? = null,
+    val phoneLockWallpaper: String? = null,
+    /** ...and the ids Android gave them, to tell whether they are still on the phone. */
+    val phoneHomeWallpaperId: Int? = null,
+    val phoneLockWallpaperId: Int? = null,
+    /** The user's own photos, newest first, kept as private copies so they can be applied again. */
+    val photos: List<String> = emptyList(),
+    /** Check GitHub once a day for a newer Versity. */
+    val autoUpdateCheck: Boolean = true,
 ) {
     companion object {
         const val MIN_DIM = 0
         const val MAX_DIM = 80
         const val MAX_FAVOURITES = 8
+        const val MAX_PHOTOS = 8
         val DEFAULT = LauncherSettings()
     }
 }

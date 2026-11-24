@@ -148,7 +148,7 @@ val StudioCorner = RoundedCornerShape(8.dp)
 val StudioChipCorner = RoundedCornerShape(8.dp)
 
 private val LocalStudioColors = staticCompositionLocalOf { StudioLight }
-private val LocalStudioFont = staticCompositionLocalOf<FontFamily> { FontFamily.Default }
+private val LocalStudioFont = staticCompositionLocalOf<FontFamily> { fontFamilyFor(ThemePresets.font(com.versity.launcher.ui.theme.APP_FONT)) }
 
 object Studio {
     val colors: StudioColors @Composable get() = LocalStudioColors.current
@@ -179,7 +179,7 @@ private fun animated(target: StudioColors): StudioColors {
 @Composable
 fun StudioTheme(mode: UiMode, font: FontFamily? = null, content: @Composable () -> Unit) {
     val colors = animated(if (studioIsDark(mode)) StudioDark else StudioLight)
-    val family = font ?: remember { fontFamilyFor(ThemePresets.font("inter")) }
+    val family = font ?: remember { fontFamilyFor(ThemePresets.font(com.versity.launcher.ui.theme.APP_FONT)) }
     val scheme = if (colors.dark) {
         darkColorScheme(primary = colors.brand, background = colors.page, surface = colors.surface, onSurface = colors.ink, onSurfaceVariant = colors.muted, outline = colors.line)
     } else {
@@ -190,7 +190,7 @@ fun StudioTheme(mode: UiMode, font: FontFamily? = null, content: @Composable () 
         LocalStudioFont provides family,
         LocalTextStyle provides TextStyle(fontFamily = family, color = colors.ink, fontFeatureSettings = LiningFigures),
     ) {
-        MaterialTheme(colorScheme = scheme, content = content)
+        MaterialTheme(colorScheme = scheme, typography = remember(family) { com.versity.launcher.ui.theme.typographyFor(family) }, content = content)
     }
 }
 
@@ -280,11 +280,12 @@ fun StudioRow(
     chevron: Boolean = true,
     divider: Boolean = false,
     titleColor: Color = Studio.colors.ink,
+    selected: Boolean = false,
     trailing: (@Composable () -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
     val c = Studio.colors
-    BoxWithConstraints(modifier.fillMaxWidth()) {
+    BoxWithConstraints(modifier.fillMaxWidth().then(if (selected) Modifier.background(c.brandSoft) else Modifier)) {
         // The value never takes more than a third of the row, so the title keeps room on narrow phones.
         val valueMax = (maxWidth * 0.34f).coerceAtMost(180.dp)
         Column(Modifier.fillMaxWidth()) {
@@ -301,7 +302,7 @@ fun StudioRow(
             ) {
                 if (glyph != null) StudioGlyph(glyph, 20.dp, c.ink)
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                    StudioText(title, StudioType.body, titleColor, maxLines = 2)
+                    StudioText(title, if (selected) StudioType.bodyStrong else StudioType.body, if (selected) c.brandText else titleColor, maxLines = 2)
                     if (detail != null) StudioText(detail, StudioType.small, c.muted, maxLines = 3)
                 }
                 if (value != null) StudioText(value, StudioType.small, c.muted, Modifier.widthIn(max = valueMax), maxLines = 2)

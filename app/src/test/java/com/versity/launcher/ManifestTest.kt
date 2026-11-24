@@ -53,8 +53,11 @@ class ManifestTest {
         assertTrue("Photo Picker needs no media permission", "android.permission.READ_MEDIA_IMAGES" !in perms)
     }
 
-    @Test fun onlyTheSetWallpaperPermissionIsRequested() {
+    @Test fun onlyWallpaperAndUpdatePermissionsAreRequested() {
         val perms = doc.getElementsByTagName("uses-permission").elements().map { it.name() }.toSet()
-        assertEquals(setOf("android.permission.SET_WALLPAPER"), perms)
+        assertEquals(
+            setOf("android.permission.SET_WALLPAPER", "android.permission.INTERNET", "android.permission.REQUEST_INSTALL_PACKAGES"),
+            perms,
+        )
     }
 }

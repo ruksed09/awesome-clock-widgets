@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dark disc behind the analogue widget's picker preview. Sized so fitCenter keeps it round. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <size android:width="1200dp" android:height="1200dp" />
+    <solid android:color="#D9141418" />
+</shape>

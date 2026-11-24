@@ -293,4 +293,59 @@ class SettingsRepositoryTest {
         assertEquals(LauncherSettings.DEFAULT.clockStyle, s.clockStyle)
         assertEquals(LauncherSettings.DEFAULT.layout, s.layout)
     }
+
+    @Test fun nothingIsAppliedOnAFreshInstall() = runTest {
+        val s = newRepo().settings.first()
+        assertNull(s.appliedThemeId)
+        assertEquals(false, s.wallpaperChosen)
+        assertEquals(emptyList<String>(), s.photos)
+        assertNull(s.phoneHomeWallpaper)
+    }
+
+    @Test fun applyingAThemeRecordsIt() = runTest {
+        val repo = newRepo()
+        val theme = com.versity.launcher.domain.ThemePresets.theme("noir")!!
+        repo.applyTheme(theme, replaceWallpaper = true)
+        val s = repo.settings.first()
+        assertEquals("noir", s.appliedThemeId)
+        assertEquals(true, s.wallpaperChosen)
+    }
+
+    @Test fun earlierVersionsGetTheThemeTheirLookStillMatches() = runTest {
+        val store = PreferenceDataStoreFactory.create(scope = backgroundScope) { File(tmp.root, "legacy.preferences_pb") }
+        val repo = SettingsRepository(store)
+        // A 0.4 user who applied Noir: the look is stored, the applied id is not.
+        val noir = com.versity.launcher.domain.ThemePresets.theme("noir")!!
+        repo.applyTheme(noir)
+        store.edit { it.remove(stringPreferencesKey("applied_theme")) }
+        assertEquals("noir", repo.settings.first().appliedThemeId)
+    }
+
+    @Test fun photosKeepOrderDropDuplicatesAndCap() = runTest {
+        val repo = newRepo()
+        val many = (1..12).map { "file:///p$it.jpg" }
+        repo.setPhotos(listOf("file:///p1.jpg") + many)
+        val s = repo.settings.first()
+        assertEquals(LauncherSettings.MAX_PHOTOS, s.photos.size)
+        assertEquals("file:///p1.jpg", s.photos.first())
+        assertEquals(s.photos.size, s.photos.toSet().size)
+    }
+
+    @Test fun phoneWallpapersAreRecordedWithTheirIds() = runTest {
+        val repo = newRepo()
+        repo.recordPhoneWallpapers("file:///home.jpg" to 41, null)
+        repo.recordPhoneWallpapers(null, "file:///lock.jpg" to 42)
+        val s = repo.settings.first()
+        assertEquals("file:///home.jpg", s.phoneHomeWallpaper)
+        assertEquals(41, s.phoneHomeWallpaperId)
+        assertEquals("file:///lock.jpg", s.phoneLockWallpaper)
+        assertEquals(42, s.phoneLockWallpaperId)
+    }
+
+    @Test fun updateChecksAreOnByDefaultAndCanBeTurnedOff() = runTest {
+        val repo = newRepo()
+        assertEquals(true, repo.settings.first().autoUpdateCheck)
+        repo.setAutoUpdateCheck(false)
+        assertEquals(false, repo.settings.first().autoUpdateCheck)
+    }
 }

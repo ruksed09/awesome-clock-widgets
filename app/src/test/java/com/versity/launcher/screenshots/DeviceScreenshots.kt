@@ -11,6 +11,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import com.versity.launcher.widget.WidgetAlign
+import com.versity.launcher.widget.FaceShape
+import com.versity.launcher.widget.HandStyle
 import com.versity.launcher.widget.WidgetBackground
 import com.versity.launcher.widget.WidgetRenderer
 import com.versity.launcher.widget.WidgetSpec
@@ -95,6 +97,16 @@ abstract class DeviceScreenshots(private val device: String) {
         shoot("placed_max_lock") { LockStyleContent(HomeUiState(settings = placed.lockLook(), now = now), onUnlock = {}) }
     }
 
+    /** A wallpaper sheet: a bottom sheet on phones, a centred dialog on tablets. */
+    @Test fun sheet() {
+        val s = LauncherSettings.DEFAULT.copy(uiMode = UiMode.LIGHT)
+        rule.setContent { CustomiseContent(s, object : CustomiseActions {}, initialPage = CustomisePage.WALLPAPERS, isDefaultLauncher = false) }
+        rule.onNodeWithTag(TestTags.wallpaper("leviathan")).performScrollTo().performClick()
+        rule.mainClock.advanceTimeBy(800)
+        rule.waitForIdle()
+        save("sheet_wallpaper")
+    }
+
     /** The widget studio, which switches to a two-pane layout on wide screens. */
     @Test fun studio() {
         val s = LauncherSettings.DEFAULT.copy(uiMode = UiMode.LIGHT)
@@ -123,6 +135,9 @@ abstract class DeviceScreenshots(private val device: String) {
             WidgetSpec.default(WidgetType.ANALOGUE),
             WidgetSpec.default(WidgetType.ANALOGUE).copy(style = WidgetStyle.DIAL_DOTS, dialFace = false, background = WidgetBackground.GLASS, opacity = 16, border = true, seconds = true),
             WidgetSpec.default(WidgetType.ANALOGUE).copy(style = WidgetStyle.DIAL_MINIMAL, textColor = 0xFF111114, backgroundColor = 0xFFF4F1EA, opacity = 90),
+            WidgetSpec.default(WidgetType.ANALOGUE).copy(style = WidgetStyle.DIAL_QUARTERS, typeface = "outfit_black", hands = HandStyle.BOLD, faceShape = FaceShape.SQUARE, backgroundColor = 0xFF1F2430, opacity = 95),
+            WidgetSpec.default(WidgetType.ANALOGUE).copy(style = WidgetStyle.DIAL_ROMAN, typeface = "playfair", hands = HandStyle.SLIM, textColor = 0xFF141418, accentColor = 0xFFD13B3B, backgroundColor = 0xFFF4ECDC, opacity = 100, seconds = true),
+            WidgetSpec.default(WidgetType.ANALOGUE).copy(style = WidgetStyle.DIAL_NUMBERS, typeface = "space_grotesk", twoTone = true, accentColor = 0xFF8FA3FF),
             WidgetSpec.default(WidgetType.DATE),
             WidgetSpec.default(WidgetType.DATE).copy(style = WidgetStyle.DATE_LINE, typeface = "playfair", background = WidgetBackground.NONE, border = false),
             WidgetSpec.default(WidgetType.DATE).copy(style = WidgetStyle.MONTH, typeface = "inter_bold"),

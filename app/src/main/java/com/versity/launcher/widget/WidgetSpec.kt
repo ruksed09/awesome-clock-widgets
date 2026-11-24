@@ -4,7 +4,7 @@ package com.versity.launcher.widget
 enum class WidgetType(val title: String, val description: String) {
     DIGITAL("Digital clock", "One line, stacked or with an ornament"),
     CLOCK_DATE("Clock and date", "Time with the date, four layouts"),
-    ANALOGUE("Analogue clock", "Three dials, optional seconds"),
+    ANALOGUE("Analogue clock", "Seven dials, three hand styles"),
     DATE("Date and calendar", "Day card, date line or month"),
 }
 
@@ -20,6 +20,10 @@ enum class WidgetStyle(val type: WidgetType, val label: String) {
     DIAL_INDEX(WidgetType.ANALOGUE, "Index"),
     DIAL_MINIMAL(WidgetType.ANALOGUE, "Minimal"),
     DIAL_DOTS(WidgetType.ANALOGUE, "Dots"),
+    DIAL_BARS(WidgetType.ANALOGUE, "Bars"),
+    DIAL_QUARTERS(WidgetType.ANALOGUE, "Quarters"),
+    DIAL_NUMBERS(WidgetType.ANALOGUE, "Numbers"),
+    DIAL_ROMAN(WidgetType.ANALOGUE, "Roman"),
     DAY_CARD(WidgetType.DATE, "Day card"),
     DATE_LINE(WidgetType.DATE, "Date line"),
     MONTH(WidgetType.DATE, "Month"),
@@ -50,6 +54,12 @@ enum class DateStyle(val label: String, val skeleton: String) {
 
 enum class WidgetOrnament(val label: String) { STAR("Star"), LINE("Line"), MOON("Moon") }
 
+/** Analogue hands. */
+enum class HandStyle(val label: String) { CLASSIC("Classic"), SLIM("Slim"), BOLD("Bold") }
+
+/** Analogue face outline. */
+enum class FaceShape(val label: String) { ROUND("Round"), SQUARE("Rounded square") }
+
 /**
  * Everything that defines how one widget looks. Colours are opaque ARGB; [opacity] (0..100) applies to
  * the panel and the analogue face. Text is never dimmed except the date line, which uses 80%.
@@ -74,6 +84,8 @@ data class WidgetSpec(
     val dialFace: Boolean = false,
     /** Analogue: a seconds hand (Android 12 and newer). */
     val seconds: Boolean = false,
+    val hands: HandStyle = HandStyle.CLASSIC,
+    val faceShape: FaceShape = FaceShape.ROUND,
 ) {
     val type: WidgetType get() = style.type
 
@@ -83,7 +95,9 @@ data class WidgetSpec(
     )
     val usesOrnament: Boolean get() = style == WidgetStyle.ORNAMENT || style == WidgetStyle.ORNAMENT_DATE
     val showsTime: Boolean get() = type == WidgetType.DIGITAL || type == WidgetType.CLOCK_DATE
-    val usesTypeface: Boolean get() = type != WidgetType.ANALOGUE
+    /** Analogue dials with numerals use a typeface; the others are marks only. */
+    val hasNumerals: Boolean get() = style == WidgetStyle.DIAL_QUARTERS || style == WidgetStyle.DIAL_NUMBERS || style == WidgetStyle.DIAL_ROMAN
+    val usesTypeface: Boolean get() = type != WidgetType.ANALOGUE || hasNumerals
 
     /** Width over height that suits this style; used for previews and widgets on Versity's home screen. */
     val aspect: Float get() = when (style) {
@@ -93,7 +107,8 @@ data class WidgetSpec(
         WidgetStyle.ORNAMENT_DATE, WidgetStyle.EDITORIAL -> 1.9f
         WidgetStyle.COMPACT -> 2.2f
         WidgetStyle.STACKED_DATE -> 1f
-        WidgetStyle.DIAL_INDEX, WidgetStyle.DIAL_MINIMAL, WidgetStyle.DIAL_DOTS -> 1f
+        WidgetStyle.DIAL_INDEX, WidgetStyle.DIAL_MINIMAL, WidgetStyle.DIAL_DOTS, WidgetStyle.DIAL_BARS,
+        WidgetStyle.DIAL_QUARTERS, WidgetStyle.DIAL_NUMBERS, WidgetStyle.DIAL_ROMAN -> 1f
         WidgetStyle.DAY_CARD -> 1f
         WidgetStyle.DATE_LINE -> 2.6f
         WidgetStyle.MONTH -> 1.05f
@@ -105,6 +120,7 @@ data class WidgetSpec(
         "twoTone" to twoTone.toString(), "ornament" to ornament.name, "bg" to background.name, "bgColor" to hex(backgroundColor),
         "opacity" to opacity.toString(), "corner" to corner.name, "border" to border.toString(), "align" to align.name,
         "time" to timeFormat.name, "date" to dateStyle.name, "face" to dialFace.toString(), "seconds" to seconds.toString(),
+        "hands" to hands.name, "faceShape" to faceShape.name,
     ).joinToString("|") { (k, v) -> "$k=$v" }
 
     companion object {
@@ -115,7 +131,7 @@ data class WidgetSpec(
             WidgetType.DIGITAL -> WidgetSpec(WidgetStyle.ORNAMENT, "cormorant_light", 0xFFDCEBFA, 0xFFDCEBFA)
             WidgetType.CLOCK_DATE -> WidgetSpec(WidgetStyle.ORNAMENT_DATE, "cormorant_light", 0xFFDCEBFA, 0xFFDCEBFA)
             WidgetType.ANALOGUE -> WidgetSpec(
-                WidgetStyle.DIAL_INDEX, textColor = 0xFFFFFFFF, accentColor = 0xFFFF7A59,
+                WidgetStyle.DIAL_INDEX, "inter_bold", textColor = 0xFFFFFFFF, accentColor = 0xFFFF7A59,
                 dialFace = true, backgroundColor = 0xFF141418, opacity = 55,
             )
             WidgetType.DATE -> WidgetSpec(
@@ -148,6 +164,8 @@ data class WidgetSpec(
                 dateStyle = m["date"]?.let { n -> DateStyle.entries.firstOrNull { it.name == n } } ?: d.dateStyle,
                 dialFace = bool("face", d.dialFace),
                 seconds = bool("seconds", d.seconds),
+                hands = m["hands"]?.let { n -> HandStyle.entries.firstOrNull { it.name == n } } ?: d.hands,
+                faceShape = m["faceShape"]?.let { n -> FaceShape.entries.firstOrNull { it.name == n } } ?: d.faceShape,
             )
         }
     }

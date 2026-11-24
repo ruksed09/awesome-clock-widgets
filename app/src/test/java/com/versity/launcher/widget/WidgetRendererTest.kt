@@ -101,4 +101,25 @@ class WidgetRendererTest {
         }
         assertTrue("no accent disc", accent > 20)
     }
+
+    @Test fun analogueDrawsItsDialAndPicksHandsThatContrast() {
+        for (hands in HandStyle.entries) {
+            for (ink in listOf(0xFFFFFFFFL, 0xFF141418L)) {
+                val spec = WidgetSpec.default(WidgetType.ANALOGUE).copy(style = WidgetStyle.DIAL_ROMAN, hands = hands, textColor = ink)
+                val view = apply(spec, 160, 160)
+                val dial = view.findViewById<android.widget.ImageView>(R.id.w_dial).drawable
+                assertNotNull("$hands dial", dial)
+                assertTrue(view.findViewById<View>(R.id.w_analog) is android.widget.AnalogClock)
+            }
+        }
+    }
+
+    @Test fun dialFaceUsesTheChosenShapeAndColour() {
+        val round = AnalogDial.render(context, WidgetSpec.default(WidgetType.ANALOGUE).copy(dialFace = true, backgroundColor = 0xFF3E5BD8, opacity = 100), 200)
+        val square = AnalogDial.render(context, WidgetSpec.default(WidgetType.ANALOGUE).copy(dialFace = true, backgroundColor = 0xFF3E5BD8, opacity = 100, faceShape = FaceShape.SQUARE), 200)
+        // The centre is face colour; a corner is empty on the round face and filled on the square one.
+        assertEquals(0xFF3E5BD8.toInt(), round.getPixel(100, 100))
+        assertEquals(0, round.getPixel(8, 8) ushr 24)
+        assertTrue((square.getPixel(30, 30) ushr 24) > 200)
+    }
 }

@@ -29,7 +29,7 @@ object WidgetRenderer {
 
     fun build(context: Context, spec: WidgetSpec, widthDp: Int, heightDp: Int, locale: Locale = Locale.getDefault()): RemoteViews {
         val views = when {
-            spec.type == WidgetType.ANALOGUE -> analogue(context, spec)
+            spec.type == WidgetType.ANALOGUE -> analogue(context, spec, widthDp, heightDp)
             spec.style == WidgetStyle.MONTH -> month(context, spec, widthDp, heightDp, locale)
             else -> text(context, spec, locale)
         }
@@ -148,23 +148,21 @@ object WidgetRenderer {
 
     // ------------------------------------------------------------ Analogue
 
-    private fun analogue(context: Context, spec: WidgetSpec): RemoteViews {
-        val layout = when (spec.style) {
-            WidgetStyle.DIAL_MINIMAL -> R.layout.widget_analog_minimal
-            WidgetStyle.DIAL_DOTS -> R.layout.widget_analog_dots
-            else -> R.layout.widget_analog_index
+    private fun analogue(context: Context, spec: WidgetSpec, widthDp: Int, heightDp: Int): RemoteViews {
+        // Hands come in light and dark ink, so they read on any face even where they cannot be tinted.
+        val light = luminance(spec.textColor) > 0.5
+        val layout = when (spec.hands) {
+            HandStyle.CLASSIC -> if (light) R.layout.widget_analog_classic_light else R.layout.widget_analog_classic_dark
+            HandStyle.SLIM -> if (light) R.layout.widget_analog_slim_light else R.layout.widget_analog_slim_dark
+            HandStyle.BOLD -> if (light) R.layout.widget_analog_bold_light else R.layout.widget_analog_bold_dark
         }
         val views = RemoteViews(context.packageName, layout)
-        if (spec.dialFace) {
-            views.setViewVisibility(R.id.w_face, View.VISIBLE)
-            views.setInt(R.id.w_face, "setColorFilter", spec.backgroundColor.toInt())
-            views.setInt(R.id.w_face, "setImageAlpha", alpha255(spec.opacity))
-        }
-        // Colours and the seconds hand can only be changed from outside the app on Android 12 and newer.
+        val density = context.resources.displayMetrics.density
+        val side = (minOf(widthDp, heightDp) * density).toInt()
+        views.setImageViewBitmap(R.id.w_dial, AnalogDial.render(context, spec, side))
+        // Exact hand colours and the seconds hand need Android 12's RemoteViews methods.
         if (Build.VERSION.SDK_INT >= 31) {
-            val text = ColorStateList.valueOf(spec.textColor.toInt())
-            views.setColorStateList(R.id.w_analog, "setDialTintList", text)
-            views.setColorStateList(R.id.w_analog, "setHourHandTintList", text)
+            views.setColorStateList(R.id.w_analog, "setHourHandTintList", ColorStateList.valueOf(spec.textColor.toInt()))
             views.setColorStateList(R.id.w_analog, "setMinuteHandTintList", ColorStateList.valueOf((if (spec.twoTone) spec.accentColor else spec.textColor).toInt()))
             if (spec.seconds) {
                 views.setIcon(R.id.w_analog, "setSecondHand", Icon.createWithResource(context, R.drawable.wa_hand_second))

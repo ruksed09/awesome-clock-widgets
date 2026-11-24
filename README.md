@@ -38,9 +38,22 @@ Widgets cannot change their typeface at runtime, so each typeface has its own ge
 
 ```bash
 python3 tools/widgets/generate_layouts.py   # writes app/src/main/res/layout/widget_text_*.xml
+python3 tools/widgets/generate_analog.py    # analogue hands (light and dark ink) and layouts
 ```
 
+Analogue dials (marks, numerals and face) are drawn to a bitmap by `widget/AnalogDial.kt`, which works
+in widgets on every Android version; hands are recoloured on Android 12 and newer.
+
 Keep its list in step with `WidgetTypefaces` in `widget/WidgetSpec.kt`; a unit test checks both.
+
+## Updates
+
+Versity reads the latest release from the GitHub API (no token: the repository is public) at most once
+a day while the setting is on, and from Settings > Updates on demand. A download is checked against
+GitHub's SHA-256 for the asset, then against the installed app: same package, higher version code and
+the same signing certificate. Only then is it handed to Android's installer, which asks the user to
+confirm. `system/Updates.kt` holds the client; INTERNET and REQUEST_INSTALL_PACKAGES are used for
+nothing else.
 
 ## Releases
 
@@ -60,8 +73,8 @@ studio for that launcher.
 - A launcher cannot replace the system lock screen. The themed lock screen shows over it while the phone
   is locked and unlocking still goes through the phone's PIN, fingerprint or face.
 - Versity's own home screen holds Versity's widgets, not other apps' widgets.
-- On Android 8 to 11, widget text stays centred and analogue widgets are white (those options need
-  Android 12's RemoteViews methods).
+- On Android 8 to 11, widget text stays centred and analogue hands are white or near-black (exact
+  colours and the seconds hand need Android 12's RemoteViews methods).
 
 ## Credits
 

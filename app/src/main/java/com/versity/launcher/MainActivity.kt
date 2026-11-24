@@ -54,12 +54,15 @@ import com.versity.launcher.ui.drawer.AppDrawerContent
 import com.versity.launcher.ui.drawer.DrawerViewModel
 import com.versity.launcher.ui.home.HomeContent
 import com.versity.launcher.ui.home.HomeViewModel
-import com.versity.launcher.ui.home.persistWallpaper
+import com.versity.launcher.system.PhotoLibrary
+import com.versity.launcher.system.Release
+import com.versity.launcher.system.UpdateState
 import com.versity.launcher.ui.lock.LockStyleContent
 import com.versity.launcher.ui.settings.CustomiseActions
 import com.versity.launcher.ui.settings.CustomiseContent
 import com.versity.launcher.ui.settings.CustomiseViewModel
 import com.versity.launcher.ui.theme.DrawerTheme
+import com.versity.launcher.ui.theme.CappedFontScale
 import com.versity.launcher.ui.theme.plainDrawerIsLight
 import com.versity.launcher.ui.studio.studioIsDark
 import com.versity.launcher.ui.settings.ApplyTarget
@@ -139,7 +142,7 @@ class MainActivity : ComponentActivity() {
             ContextCompat.RECEIVER_NOT_EXPORTED,
         )
 
-        setContent {
+        setContent { CappedFontScale {
             val context = LocalContext.current
             val homeVm: HomeViewModel = viewModel(factory = viewModelFactory {
                 initializer {
@@ -182,8 +185,11 @@ class MainActivity : ComponentActivity() {
             // Only the lock screen may ever be drawn over the keyguard. Everything else stays behind the phone's lock.
             LaunchedEffect(lockUi) { showOverKeyguard(lockUi) }
 
-            LifecycleResumeEffect(Unit) {
+            val update by container.updates.state.collectAsStateWithLifecycle()
+            LifecycleResumeEffect(home.loaded, home.settings.autoUpdateCheck) {
                 homeVm.refreshApps()
+                // At most once a day, and only when the user has not switched it off.
+                if (home.loaded && home.settings.autoUpdateCheck) container.updates.check()
                 onPauseOrDispose { }
             }
 
@@ -201,10 +207,23 @@ class MainActivity : ComponentActivity() {
             }
             val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
                 if (uri != null) {
-                    // The copy fallback can be slow for large photos, so keep it off the main thread.
+                    // Copying and scaling a large photo takes a moment, so keep it off the main thread.
                     lifecycleScope.launch {
-                        val stored = withContext(Dispatchers.IO) { runCatching { persistWallpaper(context, uri) }.getOrNull() }
-                        if (stored != null) customiseVm.setWallpaper(stored)
+                        val stored = withContext(Dispatchers.IO) { runCatching { PhotoLibrary.add(context, uri) }.getOrNull() }
+                        if (stored == null) {
+                            Toast.makeText(context, "Couldn't open that photo.", Toast.LENGTH_SHORT).show()
+                            return@launch
+                        }
+                        val s = home.settings
+                        val list = (listOf(stored) + s.photos).distinct()
+                        // Keep the newest few; older copies go unless Versity's own screens still use them.
+                        val inUse = setOfNotNull(s.wallpaperUri, s.lockWallpaperUri)
+                        val keep = list.filterIndexed { i, p -> i < LauncherSettings.MAX_PHOTOS || p in inUse }
+                        list.filterNot { it in keep }.forEach { PhotoLibrary.remove(context, it) }
+                        customiseVm.setPhotos(keep)
+                        // Let the user choose where it goes straight away.
+                        customiseRequest = CustomiseRequest.Photo(stored)
+                        screen = Screen.CUSTOMISE
                     }
                 }
             }
@@ -276,6 +295,14 @@ class MainActivity : ComponentActivity() {
                             picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                         }
                         override fun onClearWallpaper() { customiseVm.setWallpaper(null) }
+                        override fun onRemovePhoto(uri: String) {
+                            PhotoLibrary.remove(context, uri)
+                            customiseVm.setPhotos(homeSettings().photos - uri)
+                        }
+                        override fun onAutoUpdateCheck(enabled: Boolean) { customiseVm.setAutoUpdateCheck(enabled) }
+                        override fun onCheckUpdate() { container.updates.check(force = true) }
+                        override fun onDownloadUpdate(release: Release) { container.updates.download(release) }
+                        override fun onInstallUpdate(ready: UpdateState.Ready) { container.updates.install(context, ready.file) }
                         override fun onDim(percent: Int) { customiseVm.setDim(percent) }
                         override fun onClockStyle(style: ClockStyle) { customiseVm.setClockStyle(style) }
                         override fun onFont(id: String) { customiseVm.setFont(id) }
@@ -323,7 +350,9 @@ class MainActivity : ComponentActivity() {
                         override fun onSetLockWallpaper() {
                             lockWallpaperStatus = "Applying\u2026"
                             lifecycleScope.launch {
-                                val result = LockWallpaper.apply(context.applicationContext, home.settings.lockLook())
+                                val look = home.settings.lockLook()
+                                val result = LockWallpaper.apply(context.applicationContext, look)
+                                result.getOrNull()?.let { id -> customiseVm.recordPhoneWallpapers(null, (look.wallpaperUri ?: "gradient:${look.paletteId}") to id) }
                                 lockWallpaperStatus = if (result.isSuccess) "Applied. Lock your phone to see it."
                                 else "Could not apply: ${result.exceptionOrNull()?.message ?: "unknown error"}"
                             }
@@ -331,6 +360,8 @@ class MainActivity : ComponentActivity() {
                         override fun onReset() {
                             val store = WidgetStore(context)
                             homeSettings().homeWidgets.forEach { store.removeHome(it.id) }
+                            // The phone keeps its own copy of any wallpaper Versity set, so the photos can go.
+                            PhotoLibrary.prune(context, emptyList())
                             customiseVm.reset()
                         }
                     }
@@ -342,10 +373,11 @@ class MainActivity : ComponentActivity() {
                         request = customiseRequest,
                         onRequestHandled = { customiseRequest = null },
                         versionName = versionName(),
+                        update = update,
                     )
                 }
             }
-        }
+        } }
     }
 
     override fun onDestroy() {
@@ -398,10 +430,13 @@ class MainActivity : ComponentActivity() {
         val homeLook = before.withTheme(theme, useThemeWallpaper = request.replaceWallpaper)
         val lockLook = if (request.target == ApplyTarget.LOCK) before.withTheme(theme, useThemeWallpaper = true) else homeLook
         Toast.makeText(this, "${theme.name} applied to the ${where(request.target)}", Toast.LENGTH_SHORT).show()
-        setPhoneWallpapers(homeLook, lockLook, request.setPhoneWallpaper, request.setLockWallpaper, onWallpaperStatus)
+        setPhoneWallpapers(homeLook, lockLook, request.setPhoneWallpaper, request.setLockWallpaper, customiseVm, onWallpaperStatus)
     }
 
-    /** Sets a bundled wallpaper on home, lock or both, optionally switching to a palette that keeps text readable. */
+    /**
+     * Sets a bundled wallpaper or a photo on home, lock or both, optionally switching to a palette that
+     * keeps text readable. On the phone's own wallpaper it goes undimmed, exactly as chosen.
+     */
     private fun applyWallpaper(
         request: WallpaperApplyRequest,
         before: LauncherSettings,
@@ -423,7 +458,10 @@ class MainActivity : ComponentActivity() {
         val homeLook = before.copy(wallpaperUri = uri, paletteId = palette)
         val lockLook = if (request.target.lock) before.lockLook().copy(wallpaperUri = uri) else homeLook.lockLook()
         Toast.makeText(this, "${request.wallpaper.name} set on the ${where(request.target)}", Toast.LENGTH_SHORT).show()
-        setPhoneWallpapers(homeLook, lockLook, request.setPhoneWallpaper, request.setLockWallpaper, onWallpaperStatus)
+        setPhoneWallpapers(
+            homeLook.copy(dimPercent = 0), lockLook.copy(dimPercent = 0),
+            request.setPhoneWallpaper, request.setLockWallpaper, customiseVm, onWallpaperStatus,
+        )
     }
 
     private fun where(target: ApplyTarget) = when (target) {
@@ -432,25 +470,33 @@ class MainActivity : ComponentActivity() {
         ApplyTarget.BOTH -> "home and lock screens"
     }
 
-    /** Renders the given looks onto the phone's own home and/or lock wallpaper. */
+    /**
+     * Renders the given looks onto the phone's own home and/or lock wallpaper, then records what was set
+     * and the ids Android gave it, so Wallpapers can mark it as current while it is still there.
+     */
     private fun setPhoneWallpapers(
         homeLook: LauncherSettings,
         lockLook: LauncherSettings,
         setHome: Boolean,
         setLock: Boolean,
+        customiseVm: CustomiseViewModel,
         onWallpaperStatus: (String) -> Unit,
     ) {
         if (!setHome && !setLock) return
         onWallpaperStatus("Setting wallpaper\u2026")
         lifecycleScope.launch {
             val app = applicationContext
-            val results = if (setHome && setLock && homeLook == lockLook) {
-                listOf(LockWallpaper.apply(app, homeLook, WallpaperManager.FLAG_SYSTEM or WallpaperManager.FLAG_LOCK))
+            fun key(look: LauncherSettings) = look.wallpaperUri ?: "gradient:${look.paletteId}"
+            val results: List<Result<Int>>
+            if (setHome && setLock && homeLook == lockLook) {
+                val both = LockWallpaper.apply(app, homeLook, WallpaperManager.FLAG_SYSTEM or WallpaperManager.FLAG_LOCK)
+                results = listOf(both)
+                both.getOrNull()?.let { id -> customiseVm.recordPhoneWallpapers(key(homeLook) to id, key(lockLook) to id) }
             } else {
-                listOfNotNull(
-                    if (setHome) LockWallpaper.apply(app, homeLook, WallpaperManager.FLAG_SYSTEM) else null,
-                    if (setLock) LockWallpaper.apply(app, lockLook, WallpaperManager.FLAG_LOCK) else null,
-                )
+                val h = if (setHome) LockWallpaper.apply(app, homeLook, WallpaperManager.FLAG_SYSTEM) else null
+                val l = if (setLock) LockWallpaper.apply(app, lockLook, WallpaperManager.FLAG_LOCK) else null
+                results = listOfNotNull(h, l)
+                customiseVm.recordPhoneWallpapers(h?.getOrNull()?.let { key(homeLook) to it }, l?.getOrNull()?.let { key(lockLook) to it })
             }
             val failure = results.firstOrNull { it.isFailure }?.exceptionOrNull()
             onWallpaperStatus(

@@ -3,6 +3,10 @@
 
     <!-- Normal install-time permission: lets the user apply a theme background as the lock-screen wallpaper. -->
     <uses-permission android:name="android.permission.SET_WALLPAPER" />
+    <!-- Updates: read the latest release from GitHub and download its APK. Nothing else goes online. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Updates: hand a verified APK to Android's installer (the user still confirms every install). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!-- Android 11+ package visibility for the app drawer: launchable activities only. -->
     <queries>
@@ -91,6 +95,17 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_date_info" />
         </receiver>
+
+        <!-- Shares a downloaded, verified update APK with Android's installer. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.updates"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/update_paths" />
+        </provider>
 
         <!-- Confirms a widget pinned from the studio and hands it the look the user designed. -->
         <receiver

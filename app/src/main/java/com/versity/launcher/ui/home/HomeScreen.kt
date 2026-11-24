@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -158,7 +159,8 @@ fun HomeContent(state: HomeUiState, modifier: Modifier = Modifier, actions: Home
                 }
                 .windowInsetsPadding(WindowInsets.systemBars),
         ) {
-            val wide = maxWidth >= WideBreakpoint
+            // Side-by-side only in landscape; a tablet held upright keeps one centred column.
+            val wide = maxWidth >= WideBreakpoint && maxWidth > maxHeight
             HomeWidgetsLayer(state.settings.homeWidgets) { widgetMenu = it }
             when (state.settings.layout) {
                 HomeLayout.MINIMAL -> MinimalLayout(state, current, wide)
@@ -213,7 +215,10 @@ private fun MinimalLayout(state: HomeUiState, actions: HomeActions, wide: Boolea
             Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.Bottom) { BottomArea(state, actions) }
         }
     } else {
-        Column(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 16.dp)) {
+        Column(
+            Modifier.fillMaxSize().wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = 640.dp)
+                .padding(horizontal = 24.dp, vertical = 16.dp),
+        ) {
             ClockBlock(state)
             Spacer(Modifier.weight(1f))
             BottomArea(state, actions)
@@ -232,7 +237,11 @@ private fun CentredLayout(state: HomeUiState, actions: HomeActions, wide: Boolea
             Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.Bottom) { BottomArea(state, actions) }
         }
     } else {
-        Column(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            Modifier.fillMaxSize().wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = 640.dp)
+                .padding(horizontal = 24.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
             Spacer(Modifier.weight(0.8f))
             CentredClockBlock(state.now, state.is24Hour, s)
             Spacer(Modifier.weight(1f))

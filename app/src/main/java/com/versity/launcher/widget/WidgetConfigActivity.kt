@@ -14,6 +14,7 @@ import androidx.core.view.WindowCompat
 import com.versity.launcher.LauncherApplication
 import com.versity.launcher.data.LauncherSettings
 import com.versity.launcher.ui.studio.StudioTheme
+import com.versity.launcher.ui.theme.CappedFontScale
 import com.versity.launcher.ui.studio.studioIsDark
 import com.versity.launcher.ui.widgets.WidgetStudio
 
@@ -43,7 +44,7 @@ class WidgetConfigActivity : ComponentActivity() {
             statusBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
         )
-        setContent {
+        setContent { CappedFontScale {
             val s by settings.collectAsState(initial = LauncherSettings.DEFAULT)
             StudioTheme(s.uiMode) {
                 val dark = studioIsDark(s.uiMode)
@@ -68,6 +69,6 @@ class WidgetConfigActivity : ComponentActivity() {
                     onClose = { finish() },
                 )
             }
-        }
+        } }
     }
 }

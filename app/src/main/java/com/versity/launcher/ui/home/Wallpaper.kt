@@ -103,21 +103,3 @@ internal fun decodeDownsampled(context: Context, uri: Uri, reqW: Int, reqH: Int)
     )
     result.asImageBitmap()
 }.getOrNull()
-
-/**
- * Keeps the picked wallpaper readable after a restart. First choice is a persistable read grant
- * on the picked URI; if the provider refuses, the image is copied into app-private storage.
- * Returns the string to store in settings.
- */
-fun persistWallpaper(context: Context, uri: Uri): String {
-    try {
-        context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        return uri.toString()
-    } catch (_: Exception) {
-        // Fall through to the private copy.
-    }
-    val target = File(context.filesDir, "wallpaper_${System.currentTimeMillis()}.img")
-    context.contentResolver.openInputStream(uri)!!.use { input -> target.outputStream().use { input.copyTo(it) } }
-    context.filesDir.listFiles { f -> f.name.startsWith("wallpaper_") && f != target }?.forEach { it.delete() }
-    return Uri.fromFile(target).toString()
-}

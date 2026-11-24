@@ -15,6 +15,7 @@ class WidgetSpecTest {
                 ornament = WidgetOrnament.MOON, background = WidgetBackground.SOLID, backgroundColor = 0xFF0E2A2E, opacity = 37,
                 corner = WidgetCorner.SMALL, border = true, align = WidgetAlign.END, timeFormat = TimeFormat.H24,
                 dateStyle = DateStyle.SHORT, dialFace = true, seconds = true,
+                hands = HandStyle.BOLD, faceShape = FaceShape.SQUARE,
             )
             assertEquals(spec, WidgetSpec.decode(spec.encode(), style.type))
         }
@@ -76,5 +77,13 @@ class WidgetSpecTest {
             assertTrue("$style", a in 0.8f..3f)
         }
         assertEquals(1f, WidgetSpec.default(WidgetType.ANALOGUE).aspect)
+    }
+
+    @Test fun numeralDialsUseATypefaceAndMarkDialsDoNot() {
+        val numerals = setOf(WidgetStyle.DIAL_QUARTERS, WidgetStyle.DIAL_NUMBERS, WidgetStyle.DIAL_ROMAN)
+        for (style in WidgetStyle.of(WidgetType.ANALOGUE)) {
+            assertEquals("$style", style in numerals, WidgetSpec(style).usesTypeface)
+        }
+        assertTrue(WidgetStyle.of(WidgetType.ANALOGUE).size >= 7)
     }
 }

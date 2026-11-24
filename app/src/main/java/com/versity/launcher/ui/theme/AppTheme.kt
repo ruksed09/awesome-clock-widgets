@@ -1,5 +1,13 @@
 package com.versity.launcher.ui.theme
 
+import android.os.Build
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.Typography
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.text.TextStyle
@@ -68,7 +76,7 @@ fun fontFamilyFor(option: FontOption): FontFamily = FontFamily(
 val LocalLauncherColors = staticCompositionLocalOf {
     resolveColors(ThemePresets.palette(LauncherSettings.DEFAULT.paletteId), null)
 }
-val LocalLauncherFont = staticCompositionLocalOf<FontFamily> { FontFamily.Default }
+val LocalLauncherFont = staticCompositionLocalOf<FontFamily> { fontFamilyFor(ThemePresets.font(APP_FONT)) }
 
 object LauncherTheme {
     val colors: LauncherColors @Composable get() = LocalLauncherColors.current
@@ -95,31 +103,65 @@ fun AppTheme(settings: LauncherSettings, content: @Composable () -> Unit) {
         LocalLauncherColors provides colors,
         LocalLauncherFont provides font,
         LocalIconStyle provides settings.iconStyle,
-        LocalTextStyle provides LocalTextStyle.current.merge(TextStyle(fontFeatureSettings = LiningFigures)),
+        LocalTextStyle provides LocalTextStyle.current.merge(TextStyle(fontFamily = font, fontFeatureSettings = LiningFigures)),
     ) {
-        MaterialTheme(colorScheme = scheme, content = content)
+        MaterialTheme(colorScheme = scheme, typography = remember(font) { typographyFor(font) }, content = content)
     }
 }
 
 /**
- * Neutral look for the plain app drawer: the studio neutrals in the user's light/dark choice (System
- * by default), the phone's own font, and none of the launcher theme.
+ * The plain app drawer follows the phone, not Versity: the phone's light or dark mode and, on Android 12
+ * and newer, the phone's own wallpaper-based colours (Material You). Text stays in Versity's font.
  */
 @Composable
 fun PlainTheme(settings: LauncherSettings, content: @Composable () -> Unit) {
-    val s = if (studioIsDark(settings.uiMode)) StudioDark else StudioLight
-    val colors = LauncherColors(s.page, s.page, s.surface, s.ink, s.muted, s.brandText)
-    val scheme = if (s.dark) {
-        darkColorScheme(primary = s.brand, background = s.page, surface = s.surface, onSurface = s.ink, onSurfaceVariant = s.muted, outline = s.line)
-    } else {
-        lightColorScheme(primary = s.brand, background = s.page, surface = s.surface, onSurface = s.ink, onSurfaceVariant = s.muted, outline = s.line)
+    val dark = isSystemInDarkTheme()
+    val context = LocalContext.current
+    val scheme = when {
+        Build.VERSION.SDK_INT >= 31 && dark -> dynamicDarkColorScheme(context)
+        Build.VERSION.SDK_INT >= 31 -> dynamicLightColorScheme(context)
+        dark -> StudioDark.let { s -> darkColorScheme(primary = s.brand, background = s.page, surface = s.surface, surfaceContainerHigh = s.panel, onSurface = s.ink, onSurfaceVariant = s.muted, outline = s.line) }
+        else -> StudioLight.let { s -> lightColorScheme(primary = s.brand, background = s.page, surface = s.surface, surfaceContainerHigh = s.panel, onSurface = s.ink, onSurfaceVariant = s.muted, outline = s.line) }
     }
+    val colors = LauncherColors(scheme.surface, scheme.surface, scheme.surfaceContainerHigh, scheme.onSurface, scheme.onSurfaceVariant, scheme.primary)
+    val font = remember { fontFamilyFor(ThemePresets.font(APP_FONT)) }
     CompositionLocalProvider(
         LocalLauncherColors provides colors,
-        LocalLauncherFont provides FontFamily.Default,
+        LocalLauncherFont provides font,
         LocalIconStyle provides settings.iconStyle,
+        LocalTextStyle provides TextStyle(fontFamily = font, fontFeatureSettings = LiningFigures),
     ) {
-        MaterialTheme(colorScheme = scheme, content = content)
+        MaterialTheme(colorScheme = scheme, typography = remember(font) { typographyFor(font) }, content = content)
+    }
+}
+
+/** Versity's own interface font. Nothing in the app falls back to the phone's font. */
+const val APP_FONT = "inter"
+
+/** Material's type scale in [family], so any text that does not set a font still uses Versity's. */
+fun typographyFor(family: FontFamily): Typography {
+    val t = Typography()
+    fun TextStyle.f() = copy(fontFamily = family, fontFeatureSettings = LiningFigures)
+    return Typography(
+        displayLarge = t.displayLarge.f(), displayMedium = t.displayMedium.f(), displaySmall = t.displaySmall.f(),
+        headlineLarge = t.headlineLarge.f(), headlineMedium = t.headlineMedium.f(), headlineSmall = t.headlineSmall.f(),
+        titleLarge = t.titleLarge.f(), titleMedium = t.titleMedium.f(), titleSmall = t.titleSmall.f(),
+        bodyLarge = t.bodyLarge.f(), bodyMedium = t.bodyMedium.f(), bodySmall = t.bodySmall.f(),
+        labelLarge = t.labelLarge.f(), labelMedium = t.labelMedium.f(), labelSmall = t.labelSmall.f(),
+    )
+}
+
+/**
+ * Lets text grow with the phone's font size setting, but only up to [max] (115%), so layouts never
+ * break while people who need larger text still get it.
+ */
+@Composable
+fun CappedFontScale(max: Float = 1.15f, content: @Composable () -> Unit) {
+    val density = LocalDensity.current
+    if (density.fontScale <= max) {
+        content()
+    } else {
+        CompositionLocalProvider(LocalDensity provides Density(density.density, max), content = content)
     }
 }
 
@@ -131,4 +173,4 @@ fun DrawerTheme(settings: LauncherSettings, content: @Composable () -> Unit) =
 /** True when the plain drawer is showing in light mode, so the status bar needs dark icons. */
 @Composable
 fun plainDrawerIsLight(settings: LauncherSettings): Boolean =
-    settings.drawerStyle == DrawerStyle.PLAIN && !studioIsDark(settings.uiMode)
+    settings.drawerStyle == DrawerStyle.PLAIN && !isSystemInDarkTheme()

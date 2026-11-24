@@ -8,6 +8,8 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.versity.launcher.domain.ThemeBundle
+import com.versity.launcher.domain.ThemePresets
+import com.versity.launcher.domain.matches
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -19,7 +21,7 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
 
     val settings: Flow<LauncherSettings> = dataStore.data.map { prefs ->
         val d = LauncherSettings.DEFAULT
-        LauncherSettings(
+        val base = LauncherSettings(
             // Absent means never chosen (the default wallpaper); an empty string means "no wallpaper".
             wallpaperUri = prefs[WALLPAPER_URI].let { if (it == null) d.wallpaperUri else it.ifEmpty { null } },
             dimPercent = (prefs[DIM_PERCENT] ?: d.dimPercent)
@@ -53,6 +55,22 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
             uiMode = prefs[UI_MODE]
                 ?.let { name -> UiMode.entries.firstOrNull { it.name == name } }
                 ?: d.uiMode,
+            wallpaperChosen = prefs[WALLPAPER_URI] != null,
+            phoneHomeWallpaper = prefs[PHONE_HOME_WALLPAPER]?.substringAfter('|'),
+            phoneLockWallpaper = prefs[PHONE_LOCK_WALLPAPER]?.substringAfter('|'),
+            phoneHomeWallpaperId = prefs[PHONE_HOME_WALLPAPER]?.substringBefore('|')?.toIntOrNull(),
+            phoneLockWallpaperId = prefs[PHONE_LOCK_WALLPAPER]?.substringBefore('|')?.toIntOrNull(),
+            autoUpdateCheck = prefs[AUTO_UPDATE_CHECK] ?: d.autoUpdateCheck,
+        )
+        base.copy(
+            appliedThemeId = when (val stored = prefs[APPLIED_THEME]) {
+                // Versions before 0.5 did not record the applied theme; someone who changed their look
+                // then gets the theme it still matches. A fresh install has nothing applied.
+                null -> if (prefs[PALETTE_ID] != null) ThemePresets.themes.firstOrNull { it.matches(base) }?.id else null
+                else -> stored.ifEmpty { null }
+            },
+            photos = prefs[PHOTOS]?.split(SEPARATOR)?.filter { it.isNotBlank() }
+                ?: listOfNotNull(base.wallpaperUri?.takeIf { BundledWallpaper.idOf(it) == null }),
         )
     }
 
@@ -102,6 +120,25 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         }
     }
 
+    /**
+     * Records what Versity set as the phone's wallpapers, each with the id Android gave it; a null
+     * pair leaves that one as it was.
+     */
+    suspend fun recordPhoneWallpapers(home: Pair<String, Int>?, lock: Pair<String, Int>?) {
+        dataStore.edit { p ->
+            if (home != null) p[PHONE_HOME_WALLPAPER] = "${home.second}|${home.first}"
+            if (lock != null) p[PHONE_LOCK_WALLPAPER] = "${lock.second}|${lock.first}"
+        }
+    }
+
+    /** Newest first, no duplicates, at most [LauncherSettings.MAX_PHOTOS]. */
+    suspend fun setPhotos(photos: List<String>) {
+        val clean = photos.distinct().take(LauncherSettings.MAX_PHOTOS)
+        dataStore.edit { p -> p[PHOTOS] = clean.joinToString(SEPARATOR) }
+    }
+
+    suspend fun setAutoUpdateCheck(enabled: Boolean) = set(AUTO_UPDATE_CHECK, enabled)
+
     /** Widgets on Versity's home screen; an empty list removes the key. */
     suspend fun setHomeWidgets(widgets: List<HomeWidget>) =
         set(HOME_WIDGETS, widgets.takeIf { it.isNotEmpty() }?.let(HomeWidget::encodeAll))
@@ -122,6 +159,7 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
      */
     suspend fun applyTheme(theme: ThemeBundle, replaceWallpaper: Boolean = false) {
         dataStore.edit { p ->
+            p[APPLIED_THEME] = theme.id
             if (replaceWallpaper) p[WALLPAPER_URI] = theme.wallpaperId?.let(BundledWallpaper::uri) ?: ""
             p[PALETTE_ID] = theme.paletteId
             p[FONT_ID] = theme.fontId
@@ -163,5 +201,10 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         val CLOCK_PLACEMENT = stringPreferencesKey("clock_placement")
         val LOCK_CLOCK_PLACEMENT = stringPreferencesKey("lock_clock_placement")
         val HOME_WIDGETS = stringPreferencesKey("home_widgets")
+        val APPLIED_THEME = stringPreferencesKey("applied_theme")
+        val PHONE_HOME_WALLPAPER = stringPreferencesKey("phone_home_wallpaper")
+        val PHONE_LOCK_WALLPAPER = stringPreferencesKey("phone_lock_wallpaper")
+        val PHOTOS = stringPreferencesKey("photos")
+        val AUTO_UPDATE_CHECK = booleanPreferencesKey("auto_update_check")
     }
 }

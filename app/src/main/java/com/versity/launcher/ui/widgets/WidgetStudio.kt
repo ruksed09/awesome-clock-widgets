@@ -78,6 +78,8 @@ import com.versity.launcher.ui.studio.StudioText
 import com.versity.launcher.ui.studio.StudioTextButton
 import com.versity.launcher.ui.studio.StudioType
 import com.versity.launcher.widget.DateStyle
+import com.versity.launcher.widget.FaceShape
+import com.versity.launcher.widget.HandStyle
 import com.versity.launcher.widget.TimeFormat
 import com.versity.launcher.widget.WidgetAlign
 import com.versity.launcher.widget.WidgetBackground
@@ -276,7 +278,7 @@ private fun Controls(spec: WidgetSpec, set: (WidgetSpec) -> Unit, message: Strin
             ToggleLine(twoToneLabel, spec.twoTone) { set(spec.copy(twoTone = it)) }
         }
         if (spec.type == WidgetType.ANALOGUE && Build.VERSION.SDK_INT < 31) {
-            StudioHint("Colours for the dial and hands need Android 12 or newer; earlier versions show them in white.")
+            StudioHint("On this Android version the hands are white or near-black, whichever suits the text colour. The dial uses your exact colours.")
         }
     }
 
@@ -291,9 +293,12 @@ private fun Controls(spec: WidgetSpec, set: (WidgetSpec) -> Unit, message: Strin
         }
         if (spec.type == WidgetType.ANALOGUE) {
             ToggleLine("Filled face behind the dial", spec.dialFace) { set(spec.copy(dialFace = it)) }
-            if (spec.dialFace && spec.background != WidgetBackground.SOLID) {
-                StudioLabel("Face colour")
-                Swatches(PanelSwatches, spec.backgroundColor) { set(spec.copy(backgroundColor = it)) }
+            if (spec.dialFace) {
+                StudioSegmented(FaceShape.entries, spec.faceShape, { it.label }, { set(spec.copy(faceShape = it)) })
+                if (spec.background != WidgetBackground.SOLID) {
+                    StudioLabel("Face colour")
+                    Swatches(PanelSwatches, spec.backgroundColor) { set(spec.copy(backgroundColor = it)) }
+                }
             }
         }
         val hasFill = spec.background != WidgetBackground.NONE || (spec.type == WidgetType.ANALOGUE && spec.dialFace)
@@ -341,6 +346,8 @@ private fun Controls(spec: WidgetSpec, set: (WidgetSpec) -> Unit, message: Strin
                 }
             }
             if (spec.type == WidgetType.ANALOGUE) {
+                StudioLabel("Hand style")
+                StudioSegmented(HandStyle.entries, spec.hands, { it.label }, { set(spec.copy(hands = it)) }, tag = { "hands_${it.name}" })
                 if (Build.VERSION.SDK_INT >= 31) {
                     ToggleLine("Seconds hand", spec.seconds) { set(spec.copy(seconds = it)) }
                 } else {
