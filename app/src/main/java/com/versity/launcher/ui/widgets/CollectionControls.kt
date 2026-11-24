@@ -70,6 +70,7 @@ import com.versity.launcher.ui.studio.StudioType
 import com.versity.launcher.ui.studio.surface
 import com.versity.launcher.widget.Collection
 import com.versity.launcher.widget.CollectionArt
+import com.versity.launcher.widget.WidgetBackground
 import com.versity.launcher.widget.WidgetSpec
 import com.versity.launcher.widget.WidgetType
 import java.time.Instant
@@ -267,15 +268,25 @@ private fun ColourCard(spec: WidgetSpec, set: (WidgetSpec) -> Unit) {
                 Swatches(ShapeSwatches, spec.textColor) { set(spec.copy(textColor = it)) }
             }
             else -> {
-                StudioLabel("Shape")
-                Swatches(ShapeSwatches, spec.backgroundColor) { set(spec.copy(backgroundColor = it)) }
+                // Launcher and shortcut: the shape behind the apps can be dropped so they float on the wallpaper.
+                StudioLabel(if (spec.type == WidgetType.LAUNCHER) "Background shape" else "Background disc")
+                StudioSegmented(
+                    WidgetBackground.entries, spec.background, { it.label }, { set(spec.copy(background = it)) },
+                    tag = { TestTags.widgetBackground(it.name) },
+                )
+                if (spec.background == WidgetBackground.SOLID) {
+                    Swatches(ShapeSwatches, spec.backgroundColor) { set(spec.copy(backgroundColor = it)) }
+                }
                 StudioLabel("Rings")
                 Swatches(ShapeSwatches, spec.textColor) { set(spec.copy(textColor = it)) }
                 StudioLabel("Behind the icons")
                 Swatches(ShapeSwatches, spec.accentColor) { set(spec.copy(accentColor = it)) }
             }
         }
-        if (spec.type != WidgetType.COUNTDOWN) LabelledSlider("Opacity", spec.opacity, 20..100, "%") { set(spec.copy(opacity = it)) }
+        val hasFill = spec.type == WidgetType.BADGE || spec.background != WidgetBackground.NONE
+        if (spec.type != WidgetType.COUNTDOWN && hasFill) {
+            LabelledSlider("Opacity", spec.opacity, 20..100, "%") { set(spec.copy(opacity = it)) }
+        }
     }
 }
 
@@ -284,9 +295,14 @@ private fun ProportionsCard(spec: WidgetSpec, set: (WidgetSpec) -> Unit) {
     StudioCard(title = "Size and borders") {
         LabelledSlider(if (spec.type == WidgetType.BADGE) "Logo" else "Icons", spec.iconScale, 40..100, "%") { set(spec.copy(iconScale = it)) }
         if (spec.type == WidgetType.LAUNCHER) LabelledSlider("Spacing", spec.spacing, 0..30, "") { set(spec.copy(spacing = it)) }
-        LabelledSlider("Rings", spec.ringWidth, 1..10, "") { set(spec.copy(ringWidth = it)) }
+        val badge = spec.type == WidgetType.BADGE
         StudioLabel("Ring count")
-        StudioSegmented(listOf(1, 2, 3), spec.rings, { "$it" }, { set(spec.copy(rings = it)) })
+        // The badge always keeps its ring band; the apps can go without rings.
+        val counts = if (badge) listOf(1, 2, 3) else listOf(0, 1, 2, 3)
+        StudioSegmented(counts, spec.rings.coerceIn(counts.first(), 3), { if (it == 0) "None" else "$it" }, { set(spec.copy(rings = it)) }, tag = { "rings_$it" })
+        if (badge || spec.rings > 0) LabelledSlider("Ring width", spec.ringWidth, 1..10, "") { set(spec.copy(ringWidth = it)) }
+        if (!badge) ToggleLine("Round icons", spec.roundIcons) { set(spec.copy(roundIcons = it)) }
+        if (spec.type == WidgetType.LAUNCHER) ToggleLine("Larger centre app", spec.featured) { set(spec.copy(featured = it)) }
         ToggleLine("Soft shadow", spec.shadow) { set(spec.copy(shadow = it)) }
     }
 }

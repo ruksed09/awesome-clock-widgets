@@ -42,6 +42,41 @@ def line(width, y1, y2, ink):
 def dot(r, ink):
     return f'    <path android:fillColor="{ink}" android:pathData="M100,100 m-{r},0 a{r},{r} 0,1 1,{2*r},0 a{r},{r} 0,1 1,-{2*r},0" />'
 
+def shape(d, ink):
+    return f'    <path android:fillColor="{ink}" android:pathData="{d}" />'
+
+def outline(d, width, ink):
+    return f'    <path android:strokeColor="{ink}" android:strokeWidth="{width}" android:strokeLineJoin="round" android:pathData="{d}" />'
+
+def capsule(half, y_top, y_bottom):
+    """A rounded bar from y_top down to y_bottom, half as wide as given."""
+    r = half
+    return (f"M{100-half},{y_top+r} a{r},{r} 0,0 1,{2*half},0 L{100+half},{y_bottom-r} "
+            f"a{r},{r} 0,0 1,-{2*half},0 Z")
+
+# Hands drawn as shapes rather than single strokes: (hour body, minute body) given an ink.
+SHAPED = {
+    # Long and fine, with a small counterweight behind the pivot.
+    "needle": lambda ink: (
+        line(2.6, 112, 54, ink),
+        line(1.4, 124, 16, ink) + "\n" + dot_at(100, 118, 3.2, ink) + "\n" + dot(3.2, ink),
+    ),
+    # Faceted, tapering to a point, as on dress watches.
+    "dauphine": lambda ink: (
+        shape("M100,48 L105.5,100 L100,110 L94.5,100 Z", ink),
+        shape("M100,18 L104,100 L100,112 L96,100 Z", ink) + "\n" + dot(3.4, ink),
+    ),
+    # Open, outlined bars with a filled pivot.
+    "skeleton": lambda ink: (
+        outline(capsule(5.5, 50, 104), 2.4, ink),
+        # The pivot cap is wide enough to cover where the two outlines cross.
+        outline(capsule(4.2, 20, 104), 2.0, ink) + "\n" + dot(7.2, ink),
+    ),
+}
+
+def dot_at(x, y, r, ink):
+    return f'    <path android:fillColor="{ink}" android:pathData="M{x},{y} m-{r},0 a{r},{r} 0,1 1,{2*r},0 a{r},{r} 0,1 1,-{2*r},0" />'
+
 def layout(style, ink):
     return f'''<?xml version="1.0" encoding="utf-8"?>
 <!--
@@ -103,6 +138,11 @@ def main():
             (drawable / f"wa_hand_{style}_hour_{ink}.xml").write_text(vector(line(hw, h1, h2, colour), f"{style} hour hand, {ink} ink."))
             (drawable / f"wa_hand_{style}_minute_{ink}.xml").write_text(
                 vector(line(mw, m1, m2, colour) + "\n" + dot(pr, colour), f"{style} minute hand and pivot, {ink} ink."))
+            (ROOT / "layout" / f"widget_analog_{style}_{ink}.xml").write_text(layout(style, ink))
+        for style, draw in SHAPED.items():
+            hour, minute = draw(colour)
+            (drawable / f"wa_hand_{style}_hour_{ink}.xml").write_text(vector(hour, f"{style} hour hand, {ink} ink."))
+            (drawable / f"wa_hand_{style}_minute_{ink}.xml").write_text(vector(minute, f"{style} minute hand and pivot, {ink} ink."))
             (ROOT / "layout" / f"widget_analog_{style}_{ink}.xml").write_text(layout(style, ink))
     (drawable / "wa_hand_second.xml").write_text(vector(
         line(1.6, 118, 16, "#FFFFFFFF") + "\n" + dot(3, "#FFFFFFFF"), "Seconds hand, tinted to the accent (Android 12 and newer)."))

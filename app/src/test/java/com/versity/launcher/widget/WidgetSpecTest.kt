@@ -80,11 +80,25 @@ class WidgetSpecTest {
     }
 
     @Test fun numeralDialsUseATypefaceAndMarkDialsDoNot() {
-        val numerals = setOf(WidgetStyle.DIAL_QUARTERS, WidgetStyle.DIAL_NUMBERS, WidgetStyle.DIAL_ROMAN)
+        val numerals = setOf(WidgetStyle.DIAL_QUARTERS, WidgetStyle.DIAL_NUMBERS, WidgetStyle.DIAL_ROMAN, WidgetStyle.DIAL_DUAL)
         for (style in WidgetStyle.of(WidgetType.ANALOGUE)) {
             assertEquals("$style", style in numerals, WidgetSpec(style).usesTypeface)
         }
-        assertTrue(WidgetStyle.of(WidgetType.ANALOGUE).size >= 7)
+        assertTrue(WidgetStyle.of(WidgetType.ANALOGUE).size >= 12)
+        assertTrue(HandStyle.entries.size >= 6)
+    }
+
+    @Test fun launcherOptionsRoundTrip() {
+        val d = WidgetSpec.default(WidgetType.LAUNCHER)
+        assertEquals(WidgetBackground.SOLID, d.background)
+        assertTrue(WidgetStyle.of(WidgetType.LAUNCHER).size >= 5)
+        for (bg in WidgetBackground.entries) {
+            val s = d.copy(style = WidgetStyle.RADIAL_ORBIT, background = bg, rings = 0, roundIcons = true, featured = true)
+            assertEquals(s, WidgetSpec.decode(s.encode(), WidgetType.LAUNCHER))
+        }
+        // Saved before these options existed: they fall back to the defaults.
+        val old = d.encode().replace("|roundIcons=false|featured=false", "")
+        assertEquals(d, WidgetSpec.decode(old, WidgetType.LAUNCHER))
     }
 
     @Test fun collectionFieldsSurviveAwkwardCharacters() {

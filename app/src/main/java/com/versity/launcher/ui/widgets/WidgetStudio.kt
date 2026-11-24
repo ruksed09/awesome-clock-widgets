@@ -350,7 +350,9 @@ private fun Controls(spec: WidgetSpec, set: (WidgetSpec) -> Unit, message: Strin
             }
             if (spec.type == WidgetType.ANALOGUE) {
                 StudioLabel("Hand style")
-                StudioSegmented(HandStyle.entries, spec.hands, { it.label }, { set(spec.copy(hands = it)) }, tag = { "hands_${it.name}" })
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    HandStyle.entries.forEach { h -> StudioChip(h.label, spec.hands == h, "hands_${h.name}") { set(spec.copy(hands = h)) } }
+                }
                 if (Build.VERSION.SDK_INT >= 31) {
                     ToggleLine("Seconds hand", spec.seconds) { set(spec.copy(seconds = it)) }
                 } else {
@@ -375,7 +377,9 @@ private fun StyleTile(spec: WidgetSpec, style: WidgetStyle, onClick: () -> Unit)
     val selected = spec.style == style
     val preview = remember(spec, style) {
         // Bare text on a dark tile reads best; keep the user's colours so the tile matches the result.
-        spec.copy(style = style, background = WidgetBackground.NONE, border = false)
+        // The launcher and shortcut draw their own shapes, so they keep their background.
+        if (spec.type == WidgetType.LAUNCHER || spec.type == WidgetType.SHORTCUT) spec.copy(style = style)
+        else spec.copy(style = style, background = WidgetBackground.NONE, border = false)
     }
     Column(
         Modifier

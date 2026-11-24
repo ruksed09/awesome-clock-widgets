@@ -9,6 +9,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasScrollToNodeAction
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import com.versity.launcher.widget.WidgetAlign
 import com.versity.launcher.widget.FaceShape
@@ -101,7 +105,9 @@ abstract class DeviceScreenshots(private val device: String) {
     @Test fun sheet() {
         val s = LauncherSettings.DEFAULT.copy(uiMode = UiMode.LIGHT)
         rule.setContent { CustomiseContent(s, object : CustomiseActions {}, initialPage = CustomisePage.WALLPAPERS, isDefaultLauncher = false) }
-        rule.onNodeWithTag(TestTags.wallpaper("leviathan")).performScrollTo().performClick()
+        // The gallery is a lazy grid, so scroll it until the tile is composed, then open it.
+        rule.onAllNodes(hasScrollToNodeAction()).onFirst().performScrollToNode(hasTestTag(TestTags.wallpaper("leviathan")))
+        rule.onNodeWithTag(TestTags.wallpaper("leviathan")).performClick()
         rule.mainClock.advanceTimeBy(800)
         rule.waitForIdle()
         save("sheet_wallpaper")

@@ -172,6 +172,9 @@ object WidgetRenderer {
             HandStyle.CLASSIC -> if (light) R.layout.widget_analog_classic_light else R.layout.widget_analog_classic_dark
             HandStyle.SLIM -> if (light) R.layout.widget_analog_slim_light else R.layout.widget_analog_slim_dark
             HandStyle.BOLD -> if (light) R.layout.widget_analog_bold_light else R.layout.widget_analog_bold_dark
+            HandStyle.NEEDLE -> if (light) R.layout.widget_analog_needle_light else R.layout.widget_analog_needle_dark
+            HandStyle.DAUPHINE -> if (light) R.layout.widget_analog_dauphine_light else R.layout.widget_analog_dauphine_dark
+            HandStyle.SKELETON -> if (light) R.layout.widget_analog_skeleton_light else R.layout.widget_analog_skeleton_dark
         }
         val views = RemoteViews(context.packageName, layout)
         val density = context.resources.displayMetrics.density

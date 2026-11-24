@@ -88,9 +88,94 @@ object AnalogDial {
                 repeat(60) { i -> tick(i, 60, if (i % 5 == 0) 87f else 90f, 93f, if (i % 5 == 0) 1.6f else 0.8f, if (i % 5 == 0) ink else minor) }
                 numerals(context, canvas, spec, (0 until 12).toList(), u, c, 74f, 14f, ::radiusAt) { Roman[it] }
             }
+            WidgetStyle.DIAL_RAILWAY -> {
+                // A minute track between two fine circles, with bold hour batons inside it.
+                ring(canvas, paint, spec, u, c, 93f, 0.9f, minor, ::radiusAt)
+                ring(canvas, paint, spec, u, c, 86f, 0.9f, minor, ::radiusAt)
+                repeat(60) { i -> tick(i, 60, 86f, 93f, if (i % 5 == 0) 1.6f else 0.9f, if (i % 5 == 0) ink else minor) }
+                repeat(12) { i -> tick(i, 12, 70f, 82f, if (i % 3 == 0) 4.4f else 3f, ink) }
+            }
+            WidgetStyle.DIAL_SECTOR -> {
+                // Sector dial: a fine cross through the centre, an inner circle and a minute band.
+                paint.style = Paint.Style.STROKE
+                paint.strokeWidth = 0.8f * u
+                paint.color = withAlpha(ink, 0x50)
+                canvas.drawLine(c, c - 84f * u, c, c + 84f * u, paint)
+                canvas.drawLine(c - 84f * u, c, c + 84f * u, c, paint)
+                ring(canvas, paint, spec, u, c, 54f, 0.8f, withAlpha(ink, 0x50), ::radiusAt)
+                ring(canvas, paint, spec, u, c, 84f, 0.9f, minor, ::radiusAt)
+                repeat(60) { i -> tick(i, 60, 84f, if (i % 5 == 0) 93f else 89f, if (i % 5 == 0) 1.8f else 0.9f, if (i % 5 == 0) ink else minor) }
+            }
+            WidgetStyle.DIAL_DIVER -> {
+                // A broad bezel band, large lume dots and a triangle at twelve in the accent.
+                ring(canvas, paint, spec, u, c, 89f, 14f, withAlpha(ink, 0x22), ::radiusAt)
+                repeat(60) { i -> if (i % 5 != 0) tick(i, 60, 87f, 91f, 0.9f, minor) }
+                repeat(12) { i ->
+                    when {
+                        i == 0 -> Unit
+                        i % 3 == 0 -> tick(i, 12, 66f, 78f, 6.5f, ink)
+                        else -> dot(i, 12, 74f, 4.6f, ink)
+                    }
+                }
+                paint.style = Paint.Style.FILL
+                paint.color = spec.accentColor.toInt()
+                val top = c - radiusAt(-Math.PI / 2, 80f) * u
+                canvas.drawPath(android.graphics.Path().apply {
+                    moveTo(c, top + 15f * u); lineTo(c - 8f * u, top); lineTo(c + 8f * u, top); close()
+                }, paint)
+            }
+            WidgetStyle.DIAL_SEGMENTS -> {
+                // Twelve short arcs around the edge, the quarters in the accent.
+                paint.style = Paint.Style.STROKE
+                paint.strokeCap = Paint.Cap.ROUND
+                paint.strokeWidth = 4.2f * u
+                val rr = 88f * u
+                val oval = RectF(c - rr, c - rr, c + rr, c + rr)
+                repeat(12) { i ->
+                    paint.color = if (i % 3 == 0) spec.accentColor.toInt() else withAlpha(ink, 0xB0)
+                    if (spec.faceShape == FaceShape.ROUND) {
+                        canvas.drawArc(oval, i * 30f - 90f - 11f, 22f, false, paint)
+                    } else {
+                        tick(i, 12, 80f, 92f, 4.2f, paint.color)
+                    }
+                }
+            }
+            WidgetStyle.DIAL_DUAL -> {
+                // Hours inside, a minute scale outside: 5, 10 ... 60 in small numerals.
+                repeat(60) { i -> if (i % 5 != 0) tick(i, 60, 91f, 94f, 0.8f, minor) }
+                numerals(context, canvas, spec, (0 until 12).toList(), u, c, 87f, 7.5f, ::radiusAt, withAlpha(ink, 0xA0)) {
+                    "%02d".format(if (it == 0) 60 else it * 5)
+                }
+                ring(canvas, paint, spec, u, c, 80f, 0.8f, minor, ::radiusAt)
+                numerals(context, canvas, spec, (0 until 12).toList(), u, c, 66f, 16f, ::radiusAt) { (if (it == 0) 12 else it).toString() }
+            }
             else -> Unit
         }
         return bitmap
+    }
+
+    /** A fine circle, or the matching rounded square on square faces. */
+    private fun ring(
+        canvas: Canvas, paint: Paint, spec: WidgetSpec, u: Float, c: Float, r: Float, width: Float, color: Int,
+        radiusAt: (Double, Float) -> Float,
+    ) {
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = width * u
+        paint.color = color
+        if (spec.faceShape == FaceShape.ROUND) {
+            canvas.drawCircle(c, c, r * u, paint)
+            return
+        }
+        val path = android.graphics.Path()
+        for (deg in 0..360 step 2) {
+            val a = Math.toRadians(deg.toDouble())
+            val rr = radiusAt(a, r) * u
+            val x = c + cos(a).toFloat() * rr
+            val y = c + sin(a).toFloat() * rr
+            if (deg == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        }
+        path.close()
+        canvas.drawPath(path, paint)
     }
 
     private fun numerals(
@@ -103,6 +188,7 @@ object AnalogDial {
         radius: Float,
         textSize: Float,
         radiusAt: (Double, Float) -> Float,
+        color: Int = spec.textColor.toInt(),
         label: (Int) -> String,
     ) {
         val tf = WidgetTypefaces.of(spec.typeface)
@@ -112,7 +198,7 @@ object AnalogDial {
             // Numerals are small next to the time widgets' digits, so give thin faces a little weight.
             fontVariationSettings = "'wght' ${tf.weight.coerceAtLeast(350)}"
             fontFeatureSettings = "lnum, tnum"
-            color = spec.textColor.toInt()
+            this.color = color
             this.textSize = textSize * u
             textAlign = Paint.Align.CENTER
         }

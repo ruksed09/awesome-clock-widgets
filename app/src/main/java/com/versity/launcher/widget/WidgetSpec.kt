@@ -7,10 +7,10 @@ package com.versity.launcher.widget
 enum class WidgetType(val title: String, val description: String, val collection: Boolean = false) {
     DIGITAL("Digital clock", "One line, stacked or with an ornament"),
     CLOCK_DATE("Clock and date", "Time with the date, four layouts"),
-    ANALOGUE("Analogue clock", "Seven dials, three hand styles"),
+    ANALOGUE("Analogue clock", "Twelve dials, six hand styles"),
     DATE("Date and calendar", "Day card, date line or month"),
     COUNTDOWN("Countdown", "Live days, hours, minutes and seconds", collection = true),
-    LAUNCHER("App launcher", "Five apps on one radial shape", collection = true),
+    LAUNCHER("App launcher", "Five apps on a radial shape", collection = true),
     SHORTCUT("App shortcut", "One app in layered rings", collection = true),
     BADGE("Badge", "A scalloped badge with your logo", collection = true),
 }
@@ -31,6 +31,11 @@ enum class WidgetStyle(val type: WidgetType, val label: String) {
     DIAL_QUARTERS(WidgetType.ANALOGUE, "Quarters"),
     DIAL_NUMBERS(WidgetType.ANALOGUE, "Numbers"),
     DIAL_ROMAN(WidgetType.ANALOGUE, "Roman"),
+    DIAL_RAILWAY(WidgetType.ANALOGUE, "Railway"),
+    DIAL_SECTOR(WidgetType.ANALOGUE, "Sector"),
+    DIAL_DIVER(WidgetType.ANALOGUE, "Diver"),
+    DIAL_SEGMENTS(WidgetType.ANALOGUE, "Segments"),
+    DIAL_DUAL(WidgetType.ANALOGUE, "Dual"),
     DAY_CARD(WidgetType.DATE, "Day card"),
     DATE_LINE(WidgetType.DATE, "Date line"),
     MONTH(WidgetType.DATE, "Month"),
@@ -38,6 +43,9 @@ enum class WidgetStyle(val type: WidgetType, val label: String) {
     COUNTDOWN_BIG(WidgetType.COUNTDOWN, "Big days"),
     RADIAL_FLOWER(WidgetType.LAUNCHER, "Flower"),
     RADIAL_RINGS(WidgetType.LAUNCHER, "Rings"),
+    RADIAL_ORBIT(WidgetType.LAUNCHER, "Orbit"),
+    RADIAL_CROSS(WidgetType.LAUNCHER, "Cross"),
+    RADIAL_TILE(WidgetType.LAUNCHER, "Tile"),
     SHORTCUT_RINGS(WidgetType.SHORTCUT, "Rings"),
     SHORTCUT_HALO(WidgetType.SHORTCUT, "Halo"),
     BADGE_SCALLOP(WidgetType.BADGE, "Scalloped"),
@@ -71,7 +79,9 @@ enum class DateStyle(val label: String, val skeleton: String) {
 enum class WidgetOrnament(val label: String) { STAR("Star"), LINE("Line"), MOON("Moon") }
 
 /** Analogue hands. */
-enum class HandStyle(val label: String) { CLASSIC("Classic"), SLIM("Slim"), BOLD("Bold") }
+enum class HandStyle(val label: String) {
+    CLASSIC("Classic"), SLIM("Slim"), BOLD("Bold"), NEEDLE("Needle"), DAUPHINE("Dauphine"), SKELETON("Skeleton"),
+}
 
 /** Analogue face outline. */
 enum class FaceShape(val label: String) { ROUND("Round"), SQUARE("Rounded square") }
@@ -116,10 +126,14 @@ data class WidgetSpec(
     val spacing: Int = 6,
     /** Ring thickness, 1..10 (hundredths of a circle). */
     val ringWidth: Int = 4,
-    /** Number of concentric rings, 1..3. */
+    /** Number of concentric rings, 0..3 (the badge always has at least one). */
     val rings: Int = 2,
     /** A soft shadow under rings and shapes. */
     val shadow: Boolean = true,
+    /** Launcher and shortcut: app icons cut to circles, so every app matches. */
+    val roundIcons: Boolean = false,
+    /** Launcher: the centre app a little larger, with brighter rings. */
+    val featured: Boolean = false,
 ) {
     val type: WidgetType get() = style.type
 
@@ -130,7 +144,7 @@ data class WidgetSpec(
     val usesOrnament: Boolean get() = style == WidgetStyle.ORNAMENT || style == WidgetStyle.ORNAMENT_DATE
     val showsTime: Boolean get() = type == WidgetType.DIGITAL || type == WidgetType.CLOCK_DATE
     /** Analogue dials with numerals use a typeface; the others are marks only. */
-    val hasNumerals: Boolean get() = style == WidgetStyle.DIAL_QUARTERS || style == WidgetStyle.DIAL_NUMBERS || style == WidgetStyle.DIAL_ROMAN
+    val hasNumerals: Boolean get() = style in setOf(WidgetStyle.DIAL_QUARTERS, WidgetStyle.DIAL_NUMBERS, WidgetStyle.DIAL_ROMAN, WidgetStyle.DIAL_DUAL)
     val usesTypeface: Boolean get() = when (type) {
         WidgetType.DIGITAL, WidgetType.CLOCK_DATE, WidgetType.DATE -> true
         WidgetType.ANALOGUE -> hasNumerals
@@ -145,15 +159,13 @@ data class WidgetSpec(
         WidgetStyle.ORNAMENT_DATE, WidgetStyle.EDITORIAL -> 1.9f
         WidgetStyle.COMPACT -> 2.2f
         WidgetStyle.STACKED_DATE -> 1f
-        WidgetStyle.DIAL_INDEX, WidgetStyle.DIAL_MINIMAL, WidgetStyle.DIAL_DOTS, WidgetStyle.DIAL_BARS,
-        WidgetStyle.DIAL_QUARTERS, WidgetStyle.DIAL_NUMBERS, WidgetStyle.DIAL_ROMAN -> 1f
         WidgetStyle.DAY_CARD -> 1f
         WidgetStyle.DATE_LINE -> 2.6f
         WidgetStyle.MONTH -> 1.05f
         WidgetStyle.COUNTDOWN_CARD -> 2f
         WidgetStyle.COUNTDOWN_BIG -> 1.5f
-        WidgetStyle.RADIAL_FLOWER, WidgetStyle.RADIAL_RINGS, WidgetStyle.SHORTCUT_RINGS, WidgetStyle.SHORTCUT_HALO,
-        WidgetStyle.BADGE_SCALLOP, WidgetStyle.BADGE_PETALS, WidgetStyle.BADGE_CIRCLE -> 1f
+        // Dials, the launcher, the shortcut and the badge are square.
+        else -> 1f
     }
 
     /** Compact one-line form for storage: key=value pairs. Unknown or missing keys fall back to defaults. */
@@ -166,6 +178,7 @@ data class WidgetSpec(
         "title" to esc(title), "target" to target.toString(), "apps" to apps.joinToString(",") { esc(it) },
         "image" to esc(image.orEmpty()), "iconScale" to iconScale.toString(), "spacing" to spacing.toString(),
         "ringWidth" to ringWidth.toString(), "rings" to rings.toString(), "shadow" to shadow.toString(),
+        "roundIcons" to roundIcons.toString(), "featured" to featured.toString(),
     ).joinToString("|") { (k, v) -> "$k=$v" }
 
     companion object {
@@ -197,11 +210,11 @@ data class WidgetSpec(
             )
             WidgetType.LAUNCHER -> WidgetSpec(
                 WidgetStyle.RADIAL_FLOWER, textColor = 0xFF3A3A40, accentColor = 0xFF1C1C20,
-                backgroundColor = 0xFF060607, opacity = 100, iconScale = 42, ringWidth = 5, rings = 2,
+                background = WidgetBackground.SOLID, backgroundColor = 0xFF060607, opacity = 100, iconScale = 42, ringWidth = 5, rings = 2,
             )
             WidgetType.SHORTCUT -> WidgetSpec(
                 WidgetStyle.SHORTCUT_RINGS, textColor = 0xFF3A3A40, accentColor = 0xFF1C1C20,
-                backgroundColor = 0xFF060607, opacity = 100, iconScale = 48, ringWidth = 5, rings = 2,
+                background = WidgetBackground.SOLID, backgroundColor = 0xFF060607, opacity = 100, iconScale = 48, ringWidth = 5, rings = 2,
             )
             WidgetType.BADGE -> WidgetSpec(
                 WidgetStyle.BADGE_SCALLOP, textColor = 0xFFFFFFFF, accentColor = 0xFF3A5546,
@@ -242,8 +255,10 @@ data class WidgetSpec(
                 iconScale = m["iconScale"]?.toIntOrNull()?.coerceIn(40, 100) ?: d.iconScale,
                 spacing = m["spacing"]?.toIntOrNull()?.coerceIn(0, 30) ?: d.spacing,
                 ringWidth = m["ringWidth"]?.toIntOrNull()?.coerceIn(1, 10) ?: d.ringWidth,
-                rings = m["rings"]?.toIntOrNull()?.coerceIn(1, 3) ?: d.rings,
+                rings = m["rings"]?.toIntOrNull()?.coerceIn(0, 3) ?: d.rings,
                 shadow = bool("shadow", d.shadow),
+                roundIcons = bool("roundIcons", d.roundIcons),
+                featured = bool("featured", d.featured),
             )
         }
     }

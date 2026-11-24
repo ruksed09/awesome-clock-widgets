@@ -12,6 +12,9 @@ import android.widget.FrameLayout
 import androidx.test.core.app.ApplicationProvider
 import com.versity.launcher.LauncherApplication
 import com.versity.launcher.widget.CollectionArt
+import com.versity.launcher.widget.HandStyle
+import com.versity.launcher.widget.FaceShape
+import com.versity.launcher.widget.WidgetBackground
 import com.versity.launcher.widget.WidgetRenderer
 import com.versity.launcher.widget.WidgetSpec
 import com.versity.launcher.widget.WidgetStyle
@@ -57,6 +60,19 @@ class CollectionScreenshots {
             "countdown_big" to Triple(WidgetSpec.default(WidgetType.COUNTDOWN).copy(style = WidgetStyle.COUNTDOWN_BIG, title = "Doomsday", target = System.currentTimeMillis() + 22 * 86_400_000L), 220, 150),
             "launcher" to Triple(WidgetSpec.default(WidgetType.LAUNCHER).copy(apps = apps), 220, 220),
             "launcher_rings" to Triple(WidgetSpec.default(WidgetType.LAUNCHER).copy(style = WidgetStyle.RADIAL_RINGS, apps = apps, spacing = 10), 220, 220),
+            "launcher_orbit" to Triple(WidgetSpec.default(WidgetType.LAUNCHER).copy(apps = apps, style = WidgetStyle.RADIAL_ORBIT, featured = true), 220, 220),
+            "launcher_cross" to Triple(WidgetSpec.default(WidgetType.LAUNCHER).copy(apps = apps, style = WidgetStyle.RADIAL_CROSS, backgroundColor = 0xFF0E1913, textColor = 0xFF2F4A3B, accentColor = 0xFF14211A), 220, 220),
+            "launcher_tile" to Triple(WidgetSpec.default(WidgetType.LAUNCHER).copy(apps = apps, style = WidgetStyle.RADIAL_TILE, roundIcons = true, rings = 1), 220, 220),
+            "launcher_none" to Triple(WidgetSpec.default(WidgetType.LAUNCHER).copy(apps = apps, background = WidgetBackground.NONE, featured = true), 220, 220),
+            "launcher_glass" to Triple(WidgetSpec.default(WidgetType.LAUNCHER).copy(apps = apps, style = WidgetStyle.RADIAL_CROSS, background = WidgetBackground.GLASS, rings = 0, roundIcons = true, accentColor = 0xFF20232B), 220, 220),
+            "launcher_glass_orbit" to Triple(WidgetSpec.default(WidgetType.LAUNCHER).copy(apps = apps, style = WidgetStyle.RADIAL_ORBIT, background = WidgetBackground.GLASS, rings = 1), 220, 220),
+            "dial_railway" to Triple(WidgetSpec.default(WidgetType.ANALOGUE).copy(style = WidgetStyle.DIAL_RAILWAY, hands = HandStyle.NEEDLE, seconds = true), 160, 160),
+            "dial_sector" to Triple(WidgetSpec.default(WidgetType.ANALOGUE).copy(style = WidgetStyle.DIAL_SECTOR, hands = HandStyle.DAUPHINE, textColor = 0xFF141418, backgroundColor = 0xFFEDE6D6, opacity = 100, accentColor = 0xFFC2452D, seconds = true), 160, 160),
+            "dial_diver" to Triple(WidgetSpec.default(WidgetType.ANALOGUE).copy(style = WidgetStyle.DIAL_DIVER, hands = HandStyle.SKELETON, backgroundColor = 0xFF0E1913, opacity = 100, accentColor = 0xFF7DD69B), 160, 160),
+            "dial_segments" to Triple(WidgetSpec.default(WidgetType.ANALOGUE).copy(style = WidgetStyle.DIAL_SEGMENTS, hands = HandStyle.BOLD, accentColor = 0xFF8FA3FF), 160, 160),
+            "dial_dual" to Triple(WidgetSpec.default(WidgetType.ANALOGUE).copy(style = WidgetStyle.DIAL_DUAL, typeface = "space_grotesk", hands = HandStyle.DAUPHINE), 160, 160),
+            "dial_diver_square" to Triple(WidgetSpec.default(WidgetType.ANALOGUE).copy(style = WidgetStyle.DIAL_DIVER, faceShape = FaceShape.SQUARE, hands = HandStyle.NEEDLE, backgroundColor = 0xFF1F2430, opacity = 100), 160, 160),
+            "dial_segments_square" to Triple(WidgetSpec.default(WidgetType.ANALOGUE).copy(style = WidgetStyle.DIAL_SEGMENTS, faceShape = FaceShape.SQUARE, hands = HandStyle.SKELETON), 160, 160),
             "shortcut" to Triple(WidgetSpec.default(WidgetType.SHORTCUT).copy(apps = apps.take(1)), 110, 110),
             "shortcut_halo" to Triple(WidgetSpec.default(WidgetType.SHORTCUT).copy(style = WidgetStyle.SHORTCUT_HALO, apps = apps.drop(2).take(1), textColor = 0xFF7DD69B), 110, 110),
             "badge" to Triple(WidgetSpec.default(WidgetType.BADGE), 150, 150),
@@ -67,7 +83,12 @@ class CollectionScreenshots {
         val density = activity.resources.displayMetrics.density
         for ((name, look) in looks) {
             val (spec, wDp, hDp) = look
-            val host = FrameLayout(activity).apply { background = starry() }
+            // Glass needs something to show through, so it sits on a colour wash rather than black.
+            val host = FrameLayout(activity).apply {
+                background = if ("glass" in name) android.graphics.drawable.GradientDrawable(
+                    android.graphics.drawable.GradientDrawable.Orientation.TL_BR, intArrayOf(0xFF2B4C7E.toInt(), 0xFF6A3E7C.toInt(), 0xFFB0606A.toInt()),
+                ) else starry()
+            }
             host.addView(WidgetRenderer.build(activity, spec, wDp, hDp).apply(activity, host))
             val w = (wDp * density).toInt()
             val h = (hDp * density).toInt()
