@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      HAS_SIGNING_KEY: ${{ secrets.VERSITY_KEYSTORE_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # With the signing secrets set, build and sign the APK here.
+      - name: Build signed release APK
+        if: env.HAS_SIGNING_KEY == 'true'
+        env:
+          VERSITY_KEYSTORE_PASSWORD: ${{ secrets.VERSITY_KEYSTORE_PASSWORD }}
+          VERSITY_KEY_ALIAS: ${{ secrets.VERSITY_KEY_ALIAS }}
+          VERSITY_KEY_PASSWORD: ${{ secrets.VERSITY_KEY_PASSWORD }}
+        run: |
+          echo "${{ secrets.VERSITY_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/versity.jks"
+          VERSITY_KEYSTORE="$RUNNER_TEMP/versity.jks" ./gradlew testDebugUnitTest assembleRelease
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-release.apk "dist/versity-${GITHUB_REF_NAME#v}.apk"
+
+      # Without them, publish the APK that was built, signed and committed with this release.
+      - name: Use the committed release APK
+        if: env.HAS_SIGNING_KEY != 'true'
+        run: |
+          mkdir -p dist
+          cp "release/versity-${GITHUB_REF_NAME#v}.apk" dist/
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Versity ${{ github.ref_name }}
+          body_path: release/notes-${{ github.ref_name }}.md
+          files: dist/*.apk
+          fail_on_unmatched_files: true

@@ -43,15 +43,15 @@ class LockStyleUiTest {
     private fun lock(settings: LauncherSettings) =
         rule.setContent { LockStyleContent(HomeUiState(settings = settings), onUnlock = {}) }
 
-    @Test fun orbitBackdropIsDrawnOnlyForTheOrbitBackdrop() {
-        lock(LauncherSettings.DEFAULT.copy(backdrop = Backdrop.ORBIT))
-        rule.onNodeWithTag(TestTags.backdrop("ORBIT")).assertExists()
+    @Test fun lockDrawsTheBackdropOfItsSettings() {
+        lock(LauncherSettings.DEFAULT.copy(backdrop = Backdrop.STARS))
+        rule.onNodeWithTag(TestTags.backdrop("STARS")).assertExists()
     }
 
-    @Test fun otherBackdropsReplaceTheOrbit() {
+    @Test fun anotherBackdropReplacesIt() {
         lock(LauncherSettings.DEFAULT.copy(backdrop = Backdrop.RINGS))
         rule.onNodeWithTag(TestTags.backdrop("RINGS")).assertExists()
-        rule.onNodeWithTag(TestTags.backdrop("ORBIT")).assertDoesNotExist()
+        rule.onNodeWithTag(TestTags.backdrop("STARS")).assertDoesNotExist()
     }
 
     @Test fun minimalLockHidesTheBatteryBar() {

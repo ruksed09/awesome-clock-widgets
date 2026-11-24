@@ -60,6 +60,9 @@ import com.versity.launcher.ui.home.components.NotificationPill
 import com.versity.launcher.ui.home.components.SingleLineClock
 import com.versity.launcher.ui.home.components.StackedClock
 import com.versity.launcher.ui.home.components.OrnamentClock
+import com.versity.launcher.ui.home.components.BigClock
+import com.versity.launcher.ui.home.components.PlacedClock
+import com.versity.launcher.ui.home.components.BigClockStyles
 import com.versity.launcher.ui.home.components.showsOwnDate
 import com.versity.launcher.ui.theme.AppTheme
 import com.versity.launcher.ui.theme.LauncherTheme
@@ -151,6 +154,7 @@ fun HomeContent(
                 HomeLayout.MINIMAL -> MinimalLayout(state, actions, wide)
                 HomeLayout.ORBIT -> OrbitLayout(state, actions, wide)
             }
+            state.settings.clockPlacement?.let { PlacedClock(it, state.settings, state.now, state.is24Hour) }
             CustomiseButton(onOpenCustomise, Modifier.align(Alignment.TopEnd).padding(top = 8.dp, end = 12.dp))
         }
     }
@@ -255,8 +259,11 @@ private fun OrbitLayout(state: HomeUiState, actions: HomeActions, wide: Boolean)
 
 @Composable
 internal fun ClockBlock(state: HomeUiState) {
+    // A freely placed clock (and its date) is drawn over the layout instead.
+    if (state.settings.clockPlacement != null) return
     val time = state.now.toLocalTime()
-    val centered = state.settings.clockStyle == ClockStyle.ORNAMENT && state.settings.layout == HomeLayout.MINIMAL
+    val centered = state.settings.layout == HomeLayout.MINIMAL &&
+        (state.settings.clockStyle == ClockStyle.ORNAMENT || state.settings.clockStyle in BigClockStyles)
     Column(
         if (centered) Modifier.fillMaxWidth() else Modifier,
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -271,6 +278,7 @@ internal fun ClockBlock(state: HomeUiState) {
                 date = state.now.toLocalDate().takeIf { state.settings.ornamentDate },
                 sizeRange = 48f..96f, centered = centered,
             )
+            else -> BigClock(state.settings.clockStyle, time, state.is24Hour, Modifier.fillMaxWidth().padding(top = 36.dp), centered = centered, date = state.now.toLocalDate())
         }
         if (!state.settings.showsOwnDate) {
             Text(

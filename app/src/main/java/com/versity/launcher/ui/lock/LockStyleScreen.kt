@@ -43,6 +43,7 @@ import com.versity.launcher.ui.home.HomeBackground
 import com.versity.launcher.ui.home.HomeDateFormat
 import com.versity.launcher.ui.home.components.BatteryBar
 import com.versity.launcher.ui.home.components.CenteredClock
+import com.versity.launcher.ui.home.components.PlacedClock
 import com.versity.launcher.ui.home.components.showsOwnDate
 import com.versity.launcher.ui.home.components.DateRing
 import com.versity.launcher.ui.home.HomeUiState
@@ -93,14 +94,19 @@ fun LockStyleContent(state: HomeUiState, onUnlock: () -> Unit, modifier: Modifie
             ),
     ) {
         HomeBackground(state.settings)
-        Column(
+        Box(
             Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.systemBars)
                 .graphicsLayer {
                     translationY = dragPx
                     alpha = 1f - ((-dragPx / heightPx) * 1.6f).coerceIn(0f, 1f)
-                }
+                },
+        ) {
+        state.settings.clockPlacement?.let { PlacedClock(it, state.settings, state.now, state.is24Hour) }
+        Column(
+            Modifier
+                .fillMaxSize()
                 .padding(horizontal = 24.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -129,7 +135,7 @@ fun LockStyleContent(state: HomeUiState, onUnlock: () -> Unit, modifier: Modifie
                 // Minimal: just the date, a centred clock and the handle.
                 HomeLayout.MINIMAL -> {
                     Spacer(Modifier.weight(0.6f))
-                    if (!state.settings.showsOwnDate) {
+                    if (state.settings.clockPlacement == null && !state.settings.showsOwnDate) {
                         Text(
                             state.now.format(HomeDateFormat),
                             color = colors.onSurface.copy(alpha = 0.85f),
@@ -138,11 +144,12 @@ fun LockStyleContent(state: HomeUiState, onUnlock: () -> Unit, modifier: Modifie
                         )
                         Spacer(Modifier.height(4.dp))
                     }
-                    CenteredClock(state.settings, state.now, state.is24Hour)
+                    if (state.settings.clockPlacement == null) CenteredClock(state.settings, state.now, state.is24Hour)
                     Spacer(Modifier.weight(1f))
                 }
             }
             LockHandle()
+        }
         }
     }
 }

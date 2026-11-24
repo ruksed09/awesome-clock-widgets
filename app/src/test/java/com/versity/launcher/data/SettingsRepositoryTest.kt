@@ -208,7 +208,7 @@ class SettingsRepositoryTest {
         val t = ThemeBundle("t", "T", "tag", "ocean", "outfit", ClockStyle.ANALOGUE, 20, null, HomeLayout.CLASSIC, Backdrop.WAVES)
         repo.applyTheme(t)
         assertEquals("content://w", repo.settings.first().wallpaperUri)
-        repo.applyTheme(t, clearWallpaper = true)
+        repo.applyTheme(t, replaceWallpaper = true)
         assertNull(repo.settings.first().wallpaperUri)
     }
 
@@ -219,6 +219,44 @@ class SettingsRepositoryTest {
             repo.setUiMode(m)
             assertEquals(m, repo.settings.first().uiMode)
         }
+    }
+
+    @Test fun defaultWallpaperIsLeviathanAndCanBeTurnedOff() = runTest {
+        val repo = newRepo()
+        assertEquals(BundledWallpaper.uri("leviathan"), repo.settings.first().wallpaperUri)
+        repo.setWallpaperUri(null)
+        assertNull(repo.settings.first().wallpaperUri)
+        repo.reset()
+        assertEquals(BundledWallpaper.uri("leviathan"), repo.settings.first().wallpaperUri)
+    }
+
+    @Test fun themeWithAWallpaperBringsItWhenReplacing() = runTest {
+        val repo = newRepo()
+        repo.setWallpaperUri("content://photo")
+        val t = ThemeBundle("t", "T", "tag", "violet", "inter", ClockStyle.STACKED, 10, null, HomeLayout.MINIMAL, Backdrop.NONE, wallpaperId = "silk")
+        repo.applyTheme(t)
+        assertEquals("content://photo", repo.settings.first().wallpaperUri)
+        repo.applyTheme(t, replaceWallpaper = true)
+        assertEquals(BundledWallpaper.uri("silk"), repo.settings.first().wallpaperUri)
+    }
+
+    @Test fun lockWallpaperRoundTripsAndClears() = runTest {
+        val repo = newRepo()
+        assertNull(repo.settings.first().lockWallpaperUri)
+        repo.setLockWallpaperUri(BundledWallpaper.uri("dunes"))
+        assertEquals(BundledWallpaper.uri("dunes"), repo.settings.first().lockWallpaperUri)
+        repo.setLockWallpaperUri(null)
+        assertNull(repo.settings.first().lockWallpaperUri)
+    }
+
+    @Test fun clockPlacementsSaveTogetherAndClear() = runTest {
+        val repo = newRepo()
+        val home = ClockPlacement(0.5f, 0.42f, 1.3f)
+        val lock = ClockPlacement(0.3f, 0.2f, 0.9f)
+        repo.setClockPlacements(home, lock)
+        repo.settings.first().let { assertEquals(home, it.clockPlacement); assertEquals(lock, it.lockClockPlacement) }
+        repo.setClockPlacements(null, lock)
+        repo.settings.first().let { assertNull(it.clockPlacement); assertEquals(lock, it.lockClockPlacement) }
     }
 
     @Test fun backdropRoundTripsForEveryBackdrop() = runTest {

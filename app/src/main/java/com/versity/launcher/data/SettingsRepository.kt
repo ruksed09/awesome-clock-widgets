@@ -20,7 +20,8 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
     val settings: Flow<LauncherSettings> = dataStore.data.map { prefs ->
         val d = LauncherSettings.DEFAULT
         LauncherSettings(
-            wallpaperUri = prefs[WALLPAPER_URI],
+            // Absent means never chosen (the default wallpaper); an empty string means "no wallpaper".
+            wallpaperUri = prefs[WALLPAPER_URI].let { if (it == null) d.wallpaperUri else it.ifEmpty { null } },
             dimPercent = (prefs[DIM_PERCENT] ?: d.dimPercent)
                 .coerceIn(LauncherSettings.MIN_DIM, LauncherSettings.MAX_DIM),
             clockStyle = prefs[CLOCK_STYLE]
@@ -42,19 +43,24 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
                 ?: d.ornament,
             ornamentDate = prefs[ORNAMENT_DATE] ?: d.ornamentDate,
             lockThemeId = prefs[LOCK_THEME],
+            lockWallpaperUri = prefs[LOCK_WALLPAPER],
             drawerStyle = prefs[DRAWER_STYLE]
                 ?.let { name -> DrawerStyle.entries.firstOrNull { it.name == name } }
                 ?: d.drawerStyle,
             iconStyle = prefs[ICON_STYLE]
                 ?.let { name -> IconStyle.entries.firstOrNull { it.name == name } }
                 ?: d.iconStyle,
+            clockPlacement = ClockPlacement.decode(prefs[CLOCK_PLACEMENT]),
+            lockClockPlacement = ClockPlacement.decode(prefs[LOCK_CLOCK_PLACEMENT]),
             uiMode = prefs[UI_MODE]
                 ?.let { name -> UiMode.entries.firstOrNull { it.name == name } }
                 ?: d.uiMode,
         )
     }
 
-    suspend fun setWallpaperUri(uri: String?) = set(WALLPAPER_URI, uri)
+    suspend fun setWallpaperUri(uri: String?) = set(WALLPAPER_URI, uri ?: "")
+
+    suspend fun setLockWallpaperUri(uri: String?) = set(LOCK_WALLPAPER, uri)
 
     suspend fun setDimPercent(percent: Int) =
         set(DIM_PERCENT, percent.coerceIn(LauncherSettings.MIN_DIM, LauncherSettings.MAX_DIM))
@@ -92,13 +98,22 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
 
     suspend fun setUiMode(mode: UiMode) = set(UI_MODE, mode.name)
 
+    /** Both placements in one write, so the editor's Done is atomic. Null returns a clock to its layout. */
+    suspend fun setClockPlacements(home: ClockPlacement?, lock: ClockPlacement?) {
+        dataStore.edit { p ->
+            if (home == null) p.remove(CLOCK_PLACEMENT) else p[CLOCK_PLACEMENT] = home.clamped().encode()
+            if (lock == null) p.remove(LOCK_CLOCK_PLACEMENT) else p[LOCK_CLOCK_PLACEMENT] = lock.clamped().encode()
+        }
+    }
+
     /**
      * One transaction: look only. Favourites, lock-style, drawer and icon choices are left alone.
-     * The photo wallpaper is kept unless [clearWallpaper] asks for the theme's own background.
+     * The current wallpaper is kept unless [replaceWallpaper] asks for the theme's own (its bundled
+     * wallpaper, or none so its gradient and backdrop show).
      */
-    suspend fun applyTheme(theme: ThemeBundle, clearWallpaper: Boolean = false) {
+    suspend fun applyTheme(theme: ThemeBundle, replaceWallpaper: Boolean = false) {
         dataStore.edit { p ->
-            if (clearWallpaper) p.remove(WALLPAPER_URI)
+            if (replaceWallpaper) p[WALLPAPER_URI] = theme.wallpaperId?.let(BundledWallpaper::uri) ?: ""
             p[PALETTE_ID] = theme.paletteId
             p[FONT_ID] = theme.fontId
             p[CLOCK_STYLE] = theme.clockStyle.name
@@ -134,8 +149,11 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         val ORNAMENT = stringPreferencesKey("ornament")
         val ORNAMENT_DATE = booleanPreferencesKey("ornament_date")
         val LOCK_THEME = stringPreferencesKey("lock_theme_id")
+        val LOCK_WALLPAPER = stringPreferencesKey("lock_wallpaper_uri")
         val DRAWER_STYLE = stringPreferencesKey("drawer_style")
         val ICON_STYLE = stringPreferencesKey("icon_style")
         val UI_MODE = stringPreferencesKey("ui_mode")
+        val CLOCK_PLACEMENT = stringPreferencesKey("clock_placement")
+        val LOCK_CLOCK_PLACEMENT = stringPreferencesKey("lock_clock_placement")
     }
 }

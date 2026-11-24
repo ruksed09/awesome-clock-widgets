@@ -28,29 +28,46 @@ import androidx.compose.ui.unit.IntSize
 import java.io.File
 import kotlin.math.max
 import kotlin.math.min
+import androidx.compose.runtime.staticCompositionLocalOf
+import com.versity.launcher.data.BundledWallpaper
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** Keeps the last decoded wallpapers so returning from the drawer doesn't flash the gradient while it re-decodes. */
-private val wallpaperCache = android.util.LruCache<String, ImageBitmap>(2)
+/**
+ * Decoded wallpapers, bounded by memory (not count) so a gallery of small previews stays cached while
+ * full-screen images still evict each other. Returning from the drawer never flashes the gradient.
+ */
+private val wallpaperCache = object : android.util.LruCache<String, ImageBitmap>(48 * 1024 * 1024) {
+    override fun sizeOf(key: String, value: ImageBitmap) = value.width * value.height * 4
+}
+
+/**
+ * How much the surrounding preview scales its content down. Previews lay screens out at phone size,
+ * so this tells the wallpaper the real on-screen size it needs to decode.
+ */
+val LocalWallpaperScale = staticCompositionLocalOf { 1f }
 
 /** Draws the chosen wallpaper cropped to fill. Draws nothing for null or an unreadable URI. */
 @Composable
 fun WallpaperLayer(uri: String?, modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    var size by remember { mutableStateOf(IntSize.Zero) }
-    val cacheKey = "$uri@${size.width}x${size.height}"
+    var layoutSize by remember { mutableStateOf(IntSize.Zero) }
+    val scale = LocalWallpaperScale.current
+    val size = IntSize((layoutSize.width * scale).toInt(), (layoutSize.height * scale).toInt())
+    // Small previews of bundled wallpapers use their thumbnails instead of the full image.
+    val source = BundledWallpaper.idOf(uri)?.takeIf { size.width in 1..400 }?.let { BundledWallpaper.uri("${it}_thumb") } ?: uri
+    val cacheKey = "$source@${size.width}x${size.height}"
     val bitmap by produceState<ImageBitmap?>(if (uri == null) null else wallpaperCache.get(cacheKey), cacheKey) {
-        if (uri == null || size == IntSize.Zero) {
+        if (source == null || size.width <= 0 || size.height <= 0) {
             value = null
         } else {
             val hit = wallpaperCache.get(cacheKey)
-            value = hit ?: withContext(Dispatchers.IO) { decodeDownsampled(context, uri.toUri(), size.width, size.height) }
+            value = hit ?: withContext(Dispatchers.IO) { decodeDownsampled(context, source.toUri(), size.width, size.height) }
                 ?.also { wallpaperCache.put(cacheKey, it) }
         }
     }
-    Box(modifier.onSizeChanged { size = it }) {
+    Box(modifier.onSizeChanged { layoutSize = it }) {
         bitmap?.let { Image(it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.matchParentSize()) }
     }
 }

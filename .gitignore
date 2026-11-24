@@ -4,3 +4,7 @@ build/
 .idea/
 *.iml
 .kotlin/
+
+# Signing keys never belong in the repo.
+*.jks
+*.keystore

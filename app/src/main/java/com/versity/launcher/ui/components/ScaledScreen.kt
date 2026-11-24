@@ -7,6 +7,9 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import com.versity.launcher.ui.home.LocalWallpaperScale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -66,7 +69,10 @@ fun ScaledScreen(
                         }
                     }
                 },
-        ) { content() }
+        ) {
+            val scale = with(LocalDensity.current) { width.toPx() / PreviewScreenWidth.toPx() }
+            CompositionLocalProvider(LocalWallpaperScale provides scale) { content() }
+        }
         // Topmost layer: takes every touch so the preview's own buttons never fire.
         Box(
             Modifier

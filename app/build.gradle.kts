@@ -14,14 +14,28 @@ android {
         applicationId = "com.versity.launcher"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    // Release signing comes from the environment (a local keystore, or CI secrets); never from the repo.
+    val keystorePath = System.getenv("VERSITY_KEYSTORE")
+    signingConfigs {
+        if (keystorePath != null) {
+            create("release") {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("VERSITY_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("VERSITY_KEY_ALIAS")
+                keyPassword = System.getenv("VERSITY_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("release")
         }
     }
     compileOptions {

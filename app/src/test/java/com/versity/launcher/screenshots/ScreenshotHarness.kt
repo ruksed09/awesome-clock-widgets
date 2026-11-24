@@ -16,6 +16,7 @@ import com.versity.launcher.data.LauncherSettings
 import com.versity.launcher.data.UiMode
 import com.versity.launcher.domain.ThemePresets
 import com.versity.launcher.domain.withTheme
+import com.versity.launcher.domain.lockLook
 import com.versity.launcher.ui.TestTags
 import com.versity.launcher.ui.drawer.AppDrawerContent
 import com.versity.launcher.ui.drawer.DrawerUiState
@@ -24,7 +25,7 @@ import com.versity.launcher.ui.home.HomeUiState
 import com.versity.launcher.ui.lock.LockStyleContent
 import com.versity.launcher.ui.settings.CustomiseActions
 import com.versity.launcher.ui.settings.CustomiseContent
-import com.versity.launcher.ui.settings.CustomiseTab
+import com.versity.launcher.ui.settings.CustomisePage
 import com.versity.launcher.ui.theme.DrawerTheme
 import java.io.File
 import java.time.LocalDateTime
@@ -85,29 +86,49 @@ class ScreenshotHarness {
         }
     }
 
-    @Test fun customiseTabs() {
+    @Test fun customisePages() {
         host()
         for (mode in listOf(UiMode.LIGHT, UiMode.DARK)) {
-            val s = LauncherSettings.DEFAULT.withTheme(ThemePresets.theme("celestial")!!).copy(uiMode = mode)
-            for (tab in CustomiseTab.entries) {
-                shoot("customise_${mode.name.lowercase()}_${tab.name.lowercase()}") { CustomiseContent(s, object : CustomiseActions {}, initialTab = tab) }
+            val s = LauncherSettings.DEFAULT.copy(uiMode = mode)
+            for (page in CustomisePage.entries) {
+                shoot("customise_${mode.name.lowercase()}_${page.name.lowercase()}") { CustomiseContent(s, object : CustomiseActions {}, initialPage = page, isDefaultLauncher = page != CustomisePage.HUB || mode == UiMode.DARK) }
                 screen = null
                 rule.waitForIdle()
             }
         }
     }
 
-    @Test fun applySheetLight() = applySheet(UiMode.LIGHT)
+    @Test fun placedClocks() {
+        host()
+        val base = LauncherSettings.DEFAULT.withTheme(ThemePresets.theme("stage")!!)
+        shoot("placed_home") { HomeContent(HomeUiState(settings = base.copy(clockPlacement = com.versity.launcher.data.ClockPlacement(0.5f, 0.45f, 1.25f)), batteryPercent = 72, now = now)) }
+        shoot("placed_lock") {
+            LockStyleContent(HomeUiState(settings = base.copy(lockClockPlacement = com.versity.launcher.data.ClockPlacement(0.3f, 0.72f, 0.7f)).lockLook(), batteryPercent = 72, now = now), onUnlock = {})
+        }
+    }
 
-    @Test fun applySheetDark() = applySheet(UiMode.DARK)
+    @Test fun clockEditor() {
+        val s = LauncherSettings.DEFAULT.withTheme(ThemePresets.theme("frost")!!).copy(uiMode = UiMode.DARK)
+        rule.setContent { CustomiseContent(s, object : CustomiseActions {}, initialPage = CustomisePage.STYLE) }
+        rule.onNodeWithTag(TestTags.EDIT_CLOCK).performClick()
+        rule.mainClock.advanceTimeBy(500)
+        rule.waitForIdle()
+        save("clock_editor")
+    }
 
-    private fun applySheet(mode: UiMode) {
-        val s = LauncherSettings.DEFAULT.withTheme(ThemePresets.theme("orbit")!!).copy(uiMode = mode)
-        rule.setContent { CustomiseContent(s, object : CustomiseActions {}) }
-        rule.onNodeWithTag(TestTags.theme("celestial")).performClick()
+    @Test fun applySheetLight() = sheet(UiMode.LIGHT, CustomisePage.THEMES, TestTags.theme("moonrise"), "apply_sheet_light")
+
+    @Test fun applySheetDark() = sheet(UiMode.DARK, CustomisePage.THEMES, TestTags.theme("moonrise"), "apply_sheet_dark")
+
+    @Test fun wallpaperSheetLight() = sheet(UiMode.LIGHT, CustomisePage.WALLPAPERS, TestTags.wallpaper("leviathan"), "wallpaper_sheet_light")
+
+    private fun sheet(mode: UiMode, page: CustomisePage, tag: String, name: String) {
+        val s = LauncherSettings.DEFAULT.copy(uiMode = mode)
+        rule.setContent { CustomiseContent(s, object : CustomiseActions {}, initialPage = page) }
+        rule.onNodeWithTag(tag).performClick()
         rule.mainClock.advanceTimeBy(800)
         rule.waitForIdle()
-        save("apply_sheet_${mode.name.lowercase()}")
+        save(name)
     }
 
     @Test fun drawers() {

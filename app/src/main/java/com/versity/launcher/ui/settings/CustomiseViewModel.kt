@@ -22,10 +22,13 @@ class CustomiseViewModel(private val repo: SettingsRepository) : ViewModel() {
     fun setOrnamentDate(show: Boolean) = viewModelScope.launch { repo.setOrnamentDate(show) }
     fun setLockStyle(enabled: Boolean) = viewModelScope.launch { repo.setLockStyleEnabled(enabled) }
     fun setFavourites(keys: List<String>) = viewModelScope.launch { repo.setFavourites(keys) }
-    fun applyTheme(theme: ThemeBundle, clearWallpaper: Boolean = false) =
-        viewModelScope.launch { repo.applyTheme(theme, clearWallpaper) }
+    fun applyTheme(theme: ThemeBundle, replaceWallpaper: Boolean = false) =
+        viewModelScope.launch { repo.applyTheme(theme, replaceWallpaper) }
+    fun setLockWallpaper(uri: String?) = viewModelScope.launch { repo.setLockWallpaperUri(uri) }
     fun setLockTheme(id: String?) = viewModelScope.launch { repo.setLockThemeId(id) }
     fun setDrawerStyle(style: com.versity.launcher.data.DrawerStyle) = viewModelScope.launch { repo.setDrawerStyle(style) }
+    fun setClockPlacements(home: com.versity.launcher.data.ClockPlacement?, lock: com.versity.launcher.data.ClockPlacement?) =
+        viewModelScope.launch { repo.setClockPlacements(home, lock) }
     fun setUiMode(mode: com.versity.launcher.data.UiMode) = viewModelScope.launch { repo.setUiMode(mode) }
     fun setIconStyle(style: com.versity.launcher.data.IconStyle) = viewModelScope.launch { repo.setIconStyle(style) }
     fun reset() = viewModelScope.launch { repo.reset() }

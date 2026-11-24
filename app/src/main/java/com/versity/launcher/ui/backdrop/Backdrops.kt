@@ -31,7 +31,6 @@ fun DrawScope.drawBackdrop(backdrop: Backdrop, palette: Palette, accent: Color) 
     val lower = Color(palette.rimLower)
     when (backdrop) {
         Backdrop.NONE -> Unit
-        Backdrop.ORBIT -> drawOrbit(upper, lower)
         Backdrop.RINGS -> drawRings(upper, lower)
         Backdrop.HORIZON -> drawHorizon(upper, lower, Color(palette.onSurface))
         Backdrop.WAVES -> drawWaves(upper, accent)
@@ -57,30 +56,6 @@ fun BackdropLayer(backdrop: Backdrop, palette: Palette, accent: Color, modifier:
     )
 }
 
-/** Two touching circles: stacked in portrait, side by side in landscape. Only this one has a glow. */
-private fun DrawScope.drawOrbit(upper: Color, lower: Color) {
-    val w = size.width
-    val h = size.height
-    val wide = w > h
-    val r = if (wide) min(w / 4f, h / 2f) else min(w / 2f, h / 4f)
-    val c1 = if (wide) Offset(w / 2f - r, h / 2f) else Offset(w / 2f, h / 2f - r)
-    val c2 = if (wide) Offset(w / 2f + r, h / 2f) else Offset(w / 2f, h / 2f + r)
-    val upperRim = Brush.verticalGradient(listOf(upper.copy(alpha = 0.18f), upper), c1.y - r, c1.y + r)
-    val upperFill = Brush.verticalGradient(listOf(upper.copy(alpha = 0.30f), Color.Transparent), c1.y - r, c1.y + r * 0.45f)
-    val lowerRim = Brush.verticalGradient(listOf(lower, lower.copy(alpha = 0.30f)), c2.y - r, c2.y + r)
-    val lowerFill = Brush.verticalGradient(listOf(Color.Transparent, lower.copy(alpha = 0.40f)), c2.y - r * 0.2f, c2.y + r)
-    drawCircle(upperFill, r, c1)
-    drawCircle(lowerFill, r, c2)
-    // Soft glow without RenderEffect (API 31+ only): wide faint strokes under a crisp one.
-    drawCircle(upperRim, r, c1, alpha = 0.05f, style = Stroke(14.dp.toPx()))
-    drawCircle(lowerRim, r, c2, alpha = 0.05f, style = Stroke(14.dp.toPx()))
-    drawCircle(upperRim, r, c1, alpha = 0.10f, style = Stroke(7.dp.toPx()))
-    drawCircle(lowerRim, r, c2, alpha = 0.10f, style = Stroke(7.dp.toPx()))
-    drawCircle(upperRim, r, c1, style = Stroke(2.5.dp.toPx()))
-    drawCircle(lowerRim, r, c2, style = Stroke(2.5.dp.toPx()))
-}
-
-/** Five concentric arcs rising from the bottom-left corner, fading outwards; one picks up the second rim colour. */
 private fun DrawScope.drawRings(upper: Color, lower: Color) {
     val centre = Offset(size.width * 0.05f, size.height * 0.95f)
     val base = max(size.width, size.height) * 0.22f

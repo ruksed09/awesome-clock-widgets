@@ -35,8 +35,9 @@ fun OrbitHeader(
     val colors = LauncherTheme.colors
     val time = now.toLocalTime()
     val clockStyle = settings.clockStyle
+    val placed = settings.clockPlacement != null
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        if (!settings.showsOwnDate) {
+        if (!placed && !settings.showsOwnDate) {
             Text(
                 text = now.format(OrbitDate),
                 color = colors.onSurface.copy(alpha = 0.85f),
@@ -45,7 +46,8 @@ fun OrbitHeader(
             )
             Spacer(Modifier.height(4.dp))
         }
-        CenteredClock(settings, now, is24Hour)
+        // A freely placed clock (and its date) is drawn by the screen, not here.
+        if (!placed) CenteredClock(settings, now, is24Hour)
         Spacer(Modifier.height(20.dp))
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             BatteryLevel(batteryPercent, Modifier.weight(1f))
@@ -74,9 +76,10 @@ fun CenteredClock(settings: LauncherSettings, now: LocalDateTime, is24Hour: Bool
             time, is24Hour, settings.ornament, modifier.fillMaxWidth(),
             date = now.toLocalDate().takeIf { settings.ornamentDate }, sizeRange = 56f..112f, widthFactor = 0.22f,
         )
+        else -> BigClock(settings.clockStyle, time, is24Hour, modifier.fillMaxWidth(), date = now.toLocalDate())
     }
 }
 
 /** True when the clock draws the date itself, so screens skip their own date line. */
 val LauncherSettings.showsOwnDate: Boolean
-    get() = clockStyle == ClockStyle.ORNAMENT && ornamentDate
+    get() = (clockStyle == ClockStyle.ORNAMENT && ornamentDate) || clockStyle == ClockStyle.STAGE

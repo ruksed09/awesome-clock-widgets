@@ -103,6 +103,6 @@ class HomeScreenUiTest {
         val s = LauncherSettings.DEFAULT.copy(backdrop = Backdrop.HORIZON)
         rule.setContent { HomeContent(HomeUiState(settings = s)) }
         rule.onNodeWithTag(TestTags.backdrop("HORIZON")).assertExists()
-        rule.onNodeWithTag(TestTags.backdrop("ORBIT")).assertDoesNotExist()
+        rule.onNodeWithTag(TestTags.backdrop("STARS")).assertDoesNotExist()
     }
 }

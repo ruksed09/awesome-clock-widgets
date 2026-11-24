@@ -64,6 +64,10 @@ import com.versity.launcher.ui.theme.plainDrawerIsLight
 import com.versity.launcher.ui.studio.studioIsDark
 import com.versity.launcher.ui.settings.ApplyTarget
 import com.versity.launcher.ui.settings.ThemeApplyRequest
+import com.versity.launcher.ui.settings.WallpaperApplyRequest
+import com.versity.launcher.data.LauncherSettings
+import com.versity.launcher.domain.ThemePresets
+import com.versity.launcher.domain.isLight
 import com.versity.launcher.domain.lockLook
 import com.versity.launcher.domain.withTheme
 import com.versity.launcher.data.DrawerStyle
@@ -79,6 +83,15 @@ private enum class Screen { HOME, DRAWER, CUSTOMISE }
 class MainActivity : ComponentActivity() {
     /** Bumped when HOME is pressed while we are already running, so we return to the home screen. */
     private var homeSignal by mutableIntStateOf(0)
+
+    /** Bumped when the app is opened from its icon while running, so the Customise hub shows. */
+    private var appSignal by mutableIntStateOf(0)
+
+    /** True when this task started from the app icon rather than as the home screen. */
+    private var openedAsApp = false
+
+    private fun isAppLaunch(intent: Intent?): Boolean =
+        intent?.hasCategory(Intent.CATEGORY_LAUNCHER) == true && !intent.hasCategory(Intent.CATEGORY_HOME)
 
     /**
      * True while the phone's own lock (keyguard) is engaged. The themed lock screen follows it: it shows
@@ -107,6 +120,7 @@ class MainActivity : ComponentActivity() {
         val dark = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
         enableEdgeToEdge(statusBarStyle = dark, navigationBarStyle = dark)
         val container = (application as LauncherApplication).container
+        openedAsApp = isAppLaunch(intent)
         systemLocked = keyguard?.isKeyguardLocked == true
         ContextCompat.registerReceiver(
             this, lockReceiver,
@@ -141,12 +155,17 @@ class MainActivity : ComponentActivity() {
             // One source of truth for every screen, so the theme never flashes the defaults.
             val home by homeVm.state.collectAsStateWithLifecycle()
 
-            var screen by rememberSaveable { mutableStateOf(Screen.HOME) }
+            var screen by rememberSaveable { mutableStateOf(if (openedAsApp) Screen.CUSTOMISE else Screen.HOME) }
             // Plain remember, not saveable: the counters live on the activity and reset on rotation, so must these.
             var seenHome by remember { mutableIntStateOf(homeSignal) }
             if (seenHome != homeSignal) {
                 seenHome = homeSignal
                 screen = Screen.HOME
+            }
+            var seenApp by remember { mutableIntStateOf(appSignal) }
+            if (seenApp != appSignal) {
+                seenApp = appSignal
+                screen = Screen.CUSTOMISE
             }
             var previewingLock by remember { mutableStateOf(false) }
             var lockWallpaperStatus by remember { mutableStateOf<String?>(null) }
@@ -162,7 +181,13 @@ class MainActivity : ComponentActivity() {
             }
 
             // Home swallows Back, the lock-style screen ignores it, other screens return to Home.
-            BackHandler(enabled = true) { if (screen != Screen.HOME) screen = Screen.HOME }
+            // Opened from the icon while another app is the home screen: Back from the hub leaves the app.
+            BackHandler(enabled = true) {
+                when {
+                    screen == Screen.CUSTOMISE && openedAsApp && !home.isDefaultLauncher -> finish()
+                    screen != Screen.HOME -> screen = Screen.HOME
+                }
+            }
 
             val requestHome = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
                 container.isDefaultLauncher.value = DefaultLauncherCheck.isDefault(context)
@@ -180,9 +205,13 @@ class MainActivity : ComponentActivity() {
             val showLock = lockUi || (home.loaded && screen == Screen.HOME && previewingLock)
             // Light studio screens (Customise, plain drawer) need dark status and navigation bar icons.
             val studioLight = !studioIsDark(home.settings.uiMode)
-            val lightBars = !showLock && (
-                (screen == Screen.DRAWER && plainDrawerIsLight(home.settings)) || (screen == Screen.CUSTOMISE && studioLight)
-            )
+            val lightBars = when {
+                showLock -> ThemePresets.palette(home.settings.lockLook().paletteId).isLight()
+                screen == Screen.HOME -> ThemePresets.palette(home.settings.paletteId).isLight()
+                screen == Screen.DRAWER -> if (home.settings.drawerStyle == DrawerStyle.PLAIN) plainDrawerIsLight(home.settings)
+                    else ThemePresets.palette(home.settings.paletteId).isLight()
+                else -> studioLight
+            }
             LaunchedEffect(lightBars) {
                 WindowCompat.getInsetsController(window, window.decorView).apply {
                     isAppearanceLightStatusBars = lightBars
@@ -237,10 +266,20 @@ class MainActivity : ComponentActivity() {
                         override fun onApplyTheme(request: ThemeApplyRequest) {
                             applyTheme(request, home.settings, customiseVm) { lockWallpaperStatus = it }
                         }
-                        override fun onLockFollowsHome() { customiseVm.setLockTheme(null) }
+                        override fun onLockFollowsHome() { customiseVm.setLockTheme(null); customiseVm.setLockWallpaper(null) }
+                        override fun onApplyWallpaper(request: WallpaperApplyRequest) {
+                            applyWallpaper(request, home.settings, customiseVm) { lockWallpaperStatus = it }
+                        }
+                        override fun onSetDefaultLauncher() {
+                            try { requestHome.launch(DefaultLauncherCheck.requestIntent(context)) }
+                            catch (_: ActivityNotFoundException) { startSafely(Intent(Settings.ACTION_SETTINGS)) }
+                        }
                         override fun onDrawerStyle(style: DrawerStyle) { customiseVm.setDrawerStyle(style) }
                         override fun onIconStyle(style: IconStyle) { customiseVm.setIconStyle(style) }
                         override fun onUiMode(mode: com.versity.launcher.data.UiMode) { customiseVm.setUiMode(mode) }
+                        override fun onClockPlacement(home: com.versity.launcher.data.ClockPlacement?, lock: com.versity.launcher.data.ClockPlacement?) {
+                            customiseVm.setClockPlacements(home, lock)
+                        }
                         override fun onAddWidget(kind: ClockWidgetKind) { widgetStatus = pinWidget(kind) }
                         override fun onLayout(layout: HomeLayout) { customiseVm.setLayout(layout) }
                         override fun onLockStyle(enabled: Boolean) { customiseVm.setLockStyle(enabled) }
@@ -258,7 +297,12 @@ class MainActivity : ComponentActivity() {
                         }
                         override fun onReset() { customiseVm.reset() }
                     }
-                    CustomiseContent(home.settings, actions, onBack = { screen = Screen.HOME }, lockWallpaperStatus = lockWallpaperStatus, widgetStatus = widgetStatus)
+                    CustomiseContent(
+                        home.settings, actions,
+                        onBack = { if (openedAsApp && !home.isDefaultLauncher) finish() else screen = Screen.HOME },
+                        lockWallpaperStatus = lockWallpaperStatus, widgetStatus = widgetStatus,
+                        isDefaultLauncher = home.isDefaultLauncher,
+                    )
                 }
             }
         }
@@ -298,37 +342,74 @@ class MainActivity : ComponentActivity() {
     /** Applies a theme to home, lock or both, and optionally to the phone's own wallpapers. */
     private fun applyTheme(
         request: ThemeApplyRequest,
-        before: com.versity.launcher.data.LauncherSettings,
+        before: LauncherSettings,
         customiseVm: CustomiseViewModel,
         onWallpaperStatus: (String) -> Unit,
     ) {
         val theme = request.theme
-        if (request.target.home) customiseVm.applyTheme(theme, clearWallpaper = request.useThemeBackground)
+        if (request.target.home) customiseVm.applyTheme(theme, replaceWallpaper = request.replaceWallpaper)
         when (request.target) {
-            ApplyTarget.LOCK -> customiseVm.setLockTheme(theme.id)
-            ApplyTarget.BOTH -> customiseVm.setLockTheme(null)
+            ApplyTarget.LOCK -> { customiseVm.setLockTheme(theme.id); customiseVm.setLockWallpaper(null) }
+            ApplyTarget.BOTH -> { customiseVm.setLockTheme(null); customiseVm.setLockWallpaper(null) }
             ApplyTarget.HOME -> Unit
         }
         if (request.showLockScreen) customiseVm.setLockStyle(true)
 
-        val homeLook = before.withTheme(theme).copy(wallpaperUri = if (request.useThemeBackground) null else before.wallpaperUri)
-        val lockLook = if (request.target == ApplyTarget.LOCK) before.withTheme(theme).copy(wallpaperUri = null) else homeLook
-        val where = when (request.target) {
-            ApplyTarget.HOME -> "home screen"
-            ApplyTarget.LOCK -> "lock screen"
-            ApplyTarget.BOTH -> "home and lock screens"
+        val homeLook = before.withTheme(theme, useThemeWallpaper = request.replaceWallpaper)
+        val lockLook = if (request.target == ApplyTarget.LOCK) before.withTheme(theme, useThemeWallpaper = true) else homeLook
+        Toast.makeText(this, "${theme.name} applied to the ${where(request.target)}", Toast.LENGTH_SHORT).show()
+        setPhoneWallpapers(homeLook, lockLook, request.setPhoneWallpaper, request.setLockWallpaper, onWallpaperStatus)
+    }
+
+    /** Sets a bundled wallpaper on home, lock or both, optionally switching to a palette that keeps text readable. */
+    private fun applyWallpaper(
+        request: WallpaperApplyRequest,
+        before: LauncherSettings,
+        customiseVm: CustomiseViewModel,
+        onWallpaperStatus: (String) -> Unit,
+    ) {
+        val uri = request.wallpaper.uri
+        if (request.target.home) {
+            customiseVm.setWallpaper(uri)
+            request.paletteId?.let { customiseVm.setPalette(it) }
         }
-        Toast.makeText(this, "${theme.name} applied to the $where", Toast.LENGTH_SHORT).show()
-        if (!request.setPhoneWallpaper && !request.setLockWallpaper) return
+        when (request.target) {
+            ApplyTarget.LOCK -> customiseVm.setLockWallpaper(uri)
+            // A lock screen with its own theme keeps it, but shows this wallpaper too.
+            ApplyTarget.BOTH -> customiseVm.setLockWallpaper(if (before.lockThemeId != null) uri else null)
+            ApplyTarget.HOME -> Unit
+        }
+        val palette = request.paletteId ?: before.paletteId
+        val homeLook = before.copy(wallpaperUri = uri, paletteId = palette)
+        val lockLook = if (request.target.lock) before.lockLook().copy(wallpaperUri = uri) else homeLook.lockLook()
+        Toast.makeText(this, "${request.wallpaper.name} set on the ${where(request.target)}", Toast.LENGTH_SHORT).show()
+        setPhoneWallpapers(homeLook, lockLook, request.setPhoneWallpaper, request.setLockWallpaper, onWallpaperStatus)
+    }
+
+    private fun where(target: ApplyTarget) = when (target) {
+        ApplyTarget.HOME -> "home screen"
+        ApplyTarget.LOCK -> "lock screen"
+        ApplyTarget.BOTH -> "home and lock screens"
+    }
+
+    /** Renders the given looks onto the phone's own home and/or lock wallpaper. */
+    private fun setPhoneWallpapers(
+        homeLook: LauncherSettings,
+        lockLook: LauncherSettings,
+        setHome: Boolean,
+        setLock: Boolean,
+        onWallpaperStatus: (String) -> Unit,
+    ) {
+        if (!setHome && !setLock) return
         onWallpaperStatus("Setting wallpaper\u2026")
         lifecycleScope.launch {
             val app = applicationContext
-            val results = if (request.setPhoneWallpaper && request.setLockWallpaper && homeLook == lockLook) {
+            val results = if (setHome && setLock && homeLook == lockLook) {
                 listOf(LockWallpaper.apply(app, homeLook, WallpaperManager.FLAG_SYSTEM or WallpaperManager.FLAG_LOCK))
             } else {
                 listOfNotNull(
-                    if (request.setPhoneWallpaper) LockWallpaper.apply(app, homeLook, WallpaperManager.FLAG_SYSTEM) else null,
-                    if (request.setLockWallpaper) LockWallpaper.apply(app, lockLook, WallpaperManager.FLAG_LOCK) else null,
+                    if (setHome) LockWallpaper.apply(app, homeLook, WallpaperManager.FLAG_SYSTEM) else null,
+                    if (setLock) LockWallpaper.apply(app, lockLook, WallpaperManager.FLAG_LOCK) else null,
                 )
             }
             val failure = results.firstOrNull { it.isFailure }?.exceptionOrNull()
@@ -355,6 +436,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         if (intent.hasCategory(Intent.CATEGORY_HOME)) homeSignal++
+        if (isAppLaunch(intent)) { openedAsApp = true; appSignal++ }
     }
 
     override fun onResume() {
