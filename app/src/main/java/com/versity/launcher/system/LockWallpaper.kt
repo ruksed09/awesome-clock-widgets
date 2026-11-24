@@ -67,7 +67,7 @@ object LockWallpaper {
         val palette = ThemePresets.palette(settings.paletteId)
         val colors = resolveColors(palette, settings.accentArgb)
         val dim = settings.dimPercent.coerceIn(LauncherSettings.MIN_DIM, LauncherSettings.MAX_DIM) / 100f
-        val photo = settings.wallpaperUri?.let { decodeDownsampled(context, it.toUri(), w, h) }
+        val photo = com.versity.launcher.domain.Wallpapers.sourceFor(settings.wallpaperUri, w, h)?.let { decodeDownsampled(context, it.toUri(), w, h) }
         val image = ImageBitmap(w, h)
         CanvasDrawScope().draw(Density(context.resources.displayMetrics.density), LayoutDirection.Ltr, Canvas(image), Size(w.toFloat(), h.toFloat())) {
             drawRect(Brush.verticalGradient(listOf(colors.backgroundTop, colors.backgroundBottom)))

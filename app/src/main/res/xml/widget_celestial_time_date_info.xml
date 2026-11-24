@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Resizable from a small 2x1 cell to a full-width tablet widget; the layout auto-sizes its text. -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:description="@string/widget_celestial_time_date_desc"
     android:initialLayout="@layout/widget_celestial_time_date"
     android:previewLayout="@layout/widget_celestial_time_date"
-    android:minWidth="180dp"
-    android:minHeight="110dp"
-    android:minResizeWidth="140dp"
-    android:minResizeHeight="70dp"
+    android:minWidth="140dp"
+    android:minHeight="90dp"
+    android:minResizeWidth="100dp"
+    android:minResizeHeight="50dp"
     android:targetCellWidth="4"
     android:targetCellHeight="2"
     android:resizeMode="horizontal|vertical"

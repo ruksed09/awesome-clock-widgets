@@ -87,8 +87,8 @@ class ThemePresetsTest {
         assertEquals(com.versity.launcher.data.Ornament.CELESTIAL, t.ornament)
     }
 
-    @Test fun atLeastThreeDozenBundledThemes() {
-        assertTrue(ThemePresets.themes.size >= 36)
+    @Test fun atLeastFiveDozenBundledThemes() {
+        assertTrue(ThemePresets.themes.size >= 60)
     }
 
     @Test fun everyCategoryHasAtLeastThreeThemes() {
@@ -222,6 +222,29 @@ class ThemePresetsTest {
         assertEquals(null, s.lockLook().clockPlacement)
         val lock = com.versity.launcher.data.ClockPlacement(0.5f, 0.3f, 0.8f)
         assertEquals(lock, s.copy(lockClockPlacement = lock).lockLook().clockPlacement)
+    }
+
+    @Test fun wideScreensGetTheLandscapeRendering() {
+        val crystal = Wallpapers.byId("crystal_sea")!!
+        assertEquals(com.versity.launcher.data.BundledWallpaper.uri("crystal_sea_land"), Wallpapers.sourceFor(crystal.uri, 2560, 1600))
+        assertEquals(crystal.uri, Wallpapers.sourceFor(crystal.uri, 1080, 2340))
+        assertEquals(com.versity.launcher.data.BundledWallpaper.uri("crystal_sea_thumb"), Wallpapers.sourceFor(crystal.uri, 300, 650))
+        // A tablet held upright stays on the portrait image.
+        assertEquals(crystal.uri, Wallpapers.sourceFor(crystal.uri, 1600, 2560))
+    }
+
+    @Test fun photosPassThroughUnchanged() {
+        assertEquals("content://photo/1", Wallpapers.sourceFor("content://photo/1", 2560, 1600))
+        assertEquals(null, Wallpapers.sourceFor(null, 2560, 1600))
+    }
+
+    @Test fun everyGeneratedWallpaperHasALandscapeRendering() {
+        Wallpapers.all.filter { it.id != "leviathan" }.forEach { assertTrue("${it.id} has no landscape version", it.land != null) }
+    }
+
+    @Test fun wallpaperStylesAreVaried() {
+        assertTrue(Wallpapers.all.size >= 26)
+        assertTrue(Wallpapers.collections.size >= 7)
     }
 
     @Test fun theTwoCircleBackdropIsGone() {

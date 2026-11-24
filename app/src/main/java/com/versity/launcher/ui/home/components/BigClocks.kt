@@ -76,7 +76,9 @@ fun BigClock(
         modifier.testTag(TestTags.clockFace(style.name)).semantics { contentDescription = "$h:$m" },
         contentAlignment = if (centered) Alignment.TopCenter else Alignment.TopStart,
     ) {
-        val w = min(maxWidth.value, maxSize.value)
+        // Fit both ways: a face never grows taller than the space it is given (landscape, split screen).
+        val byHeight = if (maxHeight.value.isFinite()) maxHeight.value / heightPerWidth(style, date != null) else Float.MAX_VALUE
+        val w = minOf(maxWidth.value, maxSize.value, byHeight)
         when (style) {
             ClockStyle.GIANT -> GiantClock(h, m, w, centered)
             ClockStyle.OUTLINE -> OutlineClock(h, m, w, centered)
@@ -89,6 +91,20 @@ fun BigClock(
             else -> Unit
         }
     }
+}
+
+/** How tall each face is for a given width, so the width can be capped by the available height. */
+private fun heightPerWidth(style: ClockStyle, withDate: Boolean): Float = when (style) {
+    // Measured from rendered faces, including font ascent and descent, glow and extrusion margins.
+    ClockStyle.GIANT -> 1.25f
+    ClockStyle.OUTLINE -> 1.25f
+    ClockStyle.NEON -> 0.48f
+    ClockStyle.EXTRUDED -> 0.42f
+    ClockStyle.SEGMENT -> 0.36f
+    ClockStyle.FLIP -> 0.45f
+    ClockStyle.STAGE -> if (withDate) 0.56f else 0.46f
+    ClockStyle.GLASS -> 0.48f
+    else -> 0.5f
 }
 
 private fun digitStyle(size: Float, weight: FontWeight) = TextStyle(

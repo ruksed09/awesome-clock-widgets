@@ -161,6 +161,19 @@ object ThemePresets {
         ThemeBundle("frost", "Frost", "Frosted glass numerals, supernova", "nebula", "space_grotesk", ClockStyle.GLASS, 10, null, HomeLayout.MINIMAL, Backdrop.NONE, category = ThemeCategory.BIG, wallpaperId = "supernova"),
         ThemeBundle("nebula", "Nebula", "Neon tubes through crimson veins", "neon", "josefin_sans", ClockStyle.NEON, 20, null, HomeLayout.MINIMAL, Backdrop.NONE, category = ThemeCategory.NIGHT, wallpaperId = "nebula_veins"),
         ThemeBundle("saturnine", "Saturnine", "A ringed giant under giant numerals", "violet", "inter", ClockStyle.GIANT, 10, null, HomeLayout.MINIMAL, Backdrop.NONE, category = ThemeCategory.NIGHT, wallpaperId = "ringed_giant"),
+        // Wallpaper-led looks across styles
+        ThemeBundle("topo", "Topo", "Contour lines, quiet underline", "boreal", "space_grotesk", ClockStyle.ORNAMENT, 0, null, HomeLayout.MINIMAL, Backdrop.NONE, Ornament.UNDERLINE, true, ThemeCategory.MINIMAL, "contour"),
+        ThemeBundle("ridgeline", "Ridgeline", "Pulse lines and monospace", "graphite", "roboto_mono", ClockStyle.STACKED, 0, null, HomeLayout.MINIMAL, Backdrop.NONE, category = ThemeCategory.BOLD, wallpaperId = "waveform"),
+        ThemeBundle("papercut", "Papercut", "Layered paper at sundown", "sandstone", "playfair", ClockStyle.STAGE, 0, null, HomeLayout.MINIMAL, Backdrop.NONE, category = ThemeCategory.ELEGANT, wallpaperId = "paper_layers"),
+        ThemeBundle("chrome", "Chrome", "Molten metal, frosted numerals", "graphite", "syne", ClockStyle.GLASS, 0, null, HomeLayout.MINIMAL, Backdrop.NONE, category = ThemeCategory.BIG, wallpaperId = "liquid_chrome"),
+        ThemeBundle("holo", "Holo", "Iridescent foil, bold date", "porcelain", "outfit", ClockStyle.STAGE, 0, null, HomeLayout.MINIMAL, Backdrop.NONE, category = ThemeCategory.GLASS, wallpaperId = "iridescent"),
+        ThemeBundle("halo", "Halo", "True black and one ring of light", "nebula", "inter", ClockStyle.OUTLINE, 0, null, HomeLayout.MINIMAL, Backdrop.NONE, category = ThemeCategory.MINIMAL, wallpaperId = "oled_ring"),
+        ThemeBundle("dawn", "Dawn", "Soft mesh and a starlit date", "porcelain", "josefin_sans", ClockStyle.ORNAMENT, 0, null, HomeLayout.MINIMAL, Backdrop.NONE, Ornament.CELESTIAL, true, ThemeCategory.ELEGANT, "mesh_dawn"),
+        ThemeBundle("shoreline", "Shoreline", "A calm sea at first light", "clay", "cormorant", ClockStyle.ORNAMENT, 0, null, HomeLayout.MINIMAL, Backdrop.NONE, Ornament.UNDERLINE, false, ThemeCategory.NATURE, "calm_sea"),
+        ThemeBundle("alpenglow", "Alpenglow", "Misty peaks at blue hour", "moonstone", "inter", ClockStyle.STAGE, 5, null, HomeLayout.MINIMAL, Backdrop.NONE, category = ThemeCategory.NATURE, wallpaperId = "misty_peaks"),
+        ThemeBundle("composition", "Composition", "Bauhaus shapes, giant numerals", "sandstone", "josefin_sans", ClockStyle.GIANT, 0, null, HomeLayout.MINIMAL, Backdrop.NONE, category = ThemeCategory.BOLD, wallpaperId = "bauhaus"),
+        ThemeBundle("orbs", "Orbs", "Glass spheres, glass numerals", "violet", "space_grotesk", ClockStyle.GLASS, 5, null, HomeLayout.MINIMAL, Backdrop.NONE, category = ThemeCategory.GLASS, wallpaperId = "glass_orbs"),
+        ThemeBundle("ink", "Ink", "Deep mesh, moonlit serif", "mocha", "playfair", ClockStyle.ORNAMENT, 0, null, HomeLayout.MINIMAL, Backdrop.NONE, Ornament.MOON, false, ThemeCategory.ELEGANT, "mesh_ink"),
         ThemeBundle("sunlit", "Sunlit dunes", "Warm sand under a low sun", "sandstone", "josefin_sans", ClockStyle.STACKED, 0, null, HomeLayout.MINIMAL, Backdrop.NONE, category = ThemeCategory.NATURE, wallpaperId = "dunes"),
     )
 

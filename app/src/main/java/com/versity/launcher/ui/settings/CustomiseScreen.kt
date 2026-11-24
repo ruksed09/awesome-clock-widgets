@@ -44,6 +44,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -237,6 +239,10 @@ private val AccentSwatches = listOf(
 )
 private val Gutter = 16.dp
 
+/** Settings pages stay at a comfortable reading width on tablets and wide windows, centred. */
+private fun Modifier.readableWidth(): Modifier =
+    this.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = 720.dp)
+
 private fun backdropLabel(b: Backdrop) = b.name.lowercase().replaceFirstChar { it.uppercase() }
 
 private fun layoutLabel(l: HomeLayout) = when (l) {
@@ -400,7 +406,7 @@ private fun HubHeader(dark: Boolean, onToggleTheme: () -> Unit) {
         ClayTile(Color(0xFF8475F2), Color(0xFF5141D2), 40.dp) { SparkleGlyph(Color.White, 18.dp) }
         Column(Modifier.weight(1f)) {
             StudioText("Versity", StudioType.display, modifier = Modifier.semantics { heading() })
-            StudioText("Themes, wallpapers and widgets", StudioType.small, Studio.colors.muted, maxLines = 1)
+            StudioText("Themes, wallpapers and widgets", StudioType.small, Studio.colors.muted, maxLines = 2)
         }
         ThemeToggle(dark, onToggleTheme)
     }
@@ -442,9 +448,16 @@ private fun HubPage(settings: LauncherSettings, isDefault: Boolean, go: (Customi
         NavEntry(CustomisePage.MORE, "More", "Clock, lock screen, drawer", Color(0xFF9AA3B8), Color(0xFF5E6880)),
     )
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val columns = if (maxWidth >= 720.dp) 4 else 2
+        // Four across on tablets, two on phones, one on very narrow screens (folding phones' cover displays).
+        val columns = when {
+            maxWidth >= 720.dp -> 4
+            maxWidth < 300.dp -> 1
+            else -> 2
+        }
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = Gutter, vertical = 12.dp),
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                .fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = 1000.dp)
+                .padding(horizontal = Gutter, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             AppliedSummary(home?.name ?: "Custom mix", lockThemeLabel(settings))
@@ -489,14 +502,23 @@ private fun NavCard(entry: NavEntry, modifier: Modifier, onClick: () -> Unit) {
             .semantics(mergeDescendants = true) { role = Role.Button }
             .padding(14.dp),
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            ClayTile(entry.top, entry.bottom, 40.dp) { NavGlyph(entry.page) }
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                StudioText(entry.title, StudioType.cardTitle, maxLines = 1)
-                StudioText(entry.subtitle, StudioType.caption, c.muted, maxLines = 2)
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            // Narrow cards shrink the corner visual so it never runs into the text.
+            val visualScale = (maxWidth / 170.dp).coerceIn(0.6f, 1f)
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                ClayTile(entry.top, entry.bottom, 40.dp) { NavGlyph(entry.page) }
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    StudioText(entry.title, StudioType.cardTitle, maxLines = 1)
+                    StudioText(entry.subtitle, StudioType.caption, c.muted, maxLines = 2)
+                }
             }
+            Box(
+                Modifier.align(Alignment.BottomEnd).graphicsLayer {
+                    scaleX = visualScale; scaleY = visualScale
+                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin(1f, 1f)
+                },
+            ) { NavVisual(entry.page) }
         }
-        Box(Modifier.align(Alignment.BottomEnd)) { NavVisual(entry.page) }
     }
 }
 
@@ -698,7 +720,7 @@ private fun WallpapersPage(settings: LauncherSettings, actions: CustomiseActions
         item(span = { GridItemSpan(maxLineSpan) }, key = "photo") {
             StudioCard(title = "Your photo") {
                 StudioHint(if (photo) "Your photo is on the home screen." else "Use any photo from your phone as the wallpaper.")
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.Center) {
                     StudioButton(if (photo) "Change photo" else "Choose photo", Modifier.testTag(TestTags.PICK_WALLPAPER)) { actions.onPickWallpaper() }
                     if (settings.wallpaperUri != null) {
                         StudioTextButton("Use no wallpaper", Modifier.testTag(TestTags.CLEAR_WALLPAPER)) { actions.onClearWallpaper() }
@@ -1036,7 +1058,7 @@ private fun LabelledPreview(label: String, changed: Boolean, content: @Composabl
 @Composable
 private fun WidgetsPage(actions: CustomiseActions, widgetStatus: String?) {
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = Gutter, vertical = 8.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).readableWidth().padding(horizontal = Gutter, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         StudioHint("Clock widgets for any home screen that supports widgets. They keep time on their own, so they never wake your phone.", Modifier.padding(horizontal = 4.dp))
@@ -1093,7 +1115,7 @@ private fun WidgetCard(kind: ClockWidgetKind, modifier: Modifier, onAdd: () -> U
 private fun MorePage(settings: LauncherSettings, actions: CustomiseActions, go: (CustomisePage) -> Unit, onReset: () -> Unit) {
     val c = Studio.colors
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = Gutter, vertical = 8.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).readableWidth().padding(horizontal = Gutter, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Column(Modifier.fillMaxWidth().glass(c).padding(vertical = 4.dp)) {
@@ -1153,7 +1175,7 @@ private fun StylePage(settings: LauncherSettings, actions: CustomiseActions, pre
     val live = settings.copy(dimPercent = dragDim ?: settings.dimPercent, accentArgb = dragAccent ?: settings.accentArgb)
 
     Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = Gutter, vertical = 8.dp)) {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).readableWidth().padding(horizontal = Gutter, vertical = 8.dp)) {
             StyleControls(settings, actions, live, { dragDim = it }, { dragAccent = it }, onEditClock)
             Spacer(Modifier.height(24.dp))
         }
@@ -1300,7 +1322,7 @@ private fun LockPage(
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val previewW = min(maxWidth * 0.38f, 136.dp)
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = Gutter, vertical = 8.dp),
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).readableWidth().padding(horizontal = Gutter, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             PreviewStage { LabelledPreview("Lock screen", true) { LockPreview(settings, previewW, border = Color.White.copy(alpha = 0.5f)) } }
@@ -1336,7 +1358,7 @@ private fun LockPage(
 @Composable
 private fun DrawerPage(settings: LauncherSettings, actions: CustomiseActions) {
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = Gutter, vertical = 8.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).readableWidth().padding(horizontal = Gutter, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         StudioCard(title = "App drawer") {

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -177,14 +178,14 @@ private fun BottomArea(state: HomeUiState, actions: HomeActions) {
 private fun ClassicLayout(state: HomeUiState, actions: HomeActions, wide: Boolean) {
     if (wide) {
         Row(Modifier.fillMaxSize().padding(32.dp), horizontalArrangement = Arrangement.spacedBy(32.dp)) {
-            Column(Modifier.weight(1f)) {
+            Column(Modifier.weight(1f).fillMaxHeight()) {
                 ClockBlock(state)
                 Spacer(Modifier.height(16.dp))
                 NotificationPill()
                 Spacer(Modifier.height(16.dp))
                 Favourites(state, actions)
             }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.Bottom) {
+            Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.Bottom) {
                 WidgetsBlock(state)
                 Spacer(Modifier.height(24.dp))
                 BottomArea(state, actions)
@@ -209,8 +210,8 @@ private fun ClassicLayout(state: HomeUiState, actions: HomeActions, wide: Boolea
 private fun MinimalLayout(state: HomeUiState, actions: HomeActions, wide: Boolean) {
     if (wide) {
         Row(Modifier.fillMaxSize().padding(32.dp), horizontalArrangement = Arrangement.spacedBy(32.dp)) {
-            Column(Modifier.weight(1f)) { ClockBlock(state) }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.Bottom) {
+            Column(Modifier.weight(1f).fillMaxHeight()) { ClockBlock(state) }
+            Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.Bottom) {
                 Favourites(state, actions)
                 Spacer(Modifier.height(24.dp))
                 BottomArea(state, actions)
@@ -232,10 +233,10 @@ private fun OrbitLayout(state: HomeUiState, actions: HomeActions, wide: Boolean)
     val s = state.settings
     if (wide) {
         Row(Modifier.fillMaxSize().padding(32.dp), horizontalArrangement = Arrangement.spacedBy(32.dp)) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
+            Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
                 OrbitHeader(state.now, state.is24Hour, s, state.batteryPercent)
             }
-            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Bottom) {
+            Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Bottom) {
                 NotificationPill()
                 Spacer(Modifier.height(16.dp))
                 Favourites(state, actions)

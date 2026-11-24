@@ -62,7 +62,8 @@ fun PlacedClock(placement: ClockPlacement, settings: LauncherSettings, now: Loca
         val w = constraints.maxWidth
         val h = constraints.maxHeight
         val target = (w * 0.86f * placement.scale).roundToInt().coerceIn(1, w)
-        val child = measurables.first().measure(Constraints(minWidth = target, maxWidth = target, maxHeight = h))
+        // Height is capped too, so even a large clock in landscape stays fully on screen.
+        val child = measurables.first().measure(Constraints(minWidth = target, maxWidth = target, maxHeight = (h * 0.92f).roundToInt()))
         val x = (placement.x * w - child.width / 2f).roundToInt().coerceIn(0, max(0, w - child.width))
         val y = (placement.y * h - child.height / 2f).roundToInt().coerceIn(0, max(0, h - child.height))
         layout(w, h) { child.place(x, y) }

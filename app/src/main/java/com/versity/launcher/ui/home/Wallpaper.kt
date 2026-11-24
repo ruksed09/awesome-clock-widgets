@@ -55,8 +55,8 @@ fun WallpaperLayer(uri: String?, modifier: Modifier = Modifier) {
     var layoutSize by remember { mutableStateOf(IntSize.Zero) }
     val scale = LocalWallpaperScale.current
     val size = IntSize((layoutSize.width * scale).toInt(), (layoutSize.height * scale).toInt())
-    // Small previews of bundled wallpapers use their thumbnails instead of the full image.
-    val source = BundledWallpaper.idOf(uri)?.takeIf { size.width in 1..400 }?.let { BundledWallpaper.uri("${it}_thumb") } ?: uri
+    // Bundled wallpapers: landscape rendering on wide screens, thumbnail for small previews.
+    val source = com.versity.launcher.domain.Wallpapers.sourceFor(uri, size.width, size.height)
     val cacheKey = "$source@${size.width}x${size.height}"
     val bitmap by produceState<ImageBitmap?>(if (uri == null) null else wallpaperCache.get(cacheKey), cacheKey) {
         if (source == null || size.width <= 0 || size.height <= 0) {

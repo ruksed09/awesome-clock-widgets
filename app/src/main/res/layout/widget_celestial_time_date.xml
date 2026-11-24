@@ -1,47 +1,63 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Transparent so the wallpaper shows through. TextClock updates itself, so the app never wakes the phone. -->
+<!--
+  Transparent so the wallpaper shows through. TextClock keeps time by itself, so the app never wakes
+  the phone. Rows share the height by weight and the text auto-sizes, so the widget fills any cell size,
+  from a small phone cell to a large tablet widget.
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:gravity="center"
     android:orientation="vertical"
-    android:padding="8dp">
+    android:padding="6dp">
 
     <TextClock
         android:id="@+id/widget_time"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:format12Hour="h:mm"
-        android:format24Hour="HH:mm"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="3"
+        android:autoSizeMaxTextSize="160sp"
+        android:autoSizeMinTextSize="18sp"
+        android:autoSizeStepGranularity="2sp"
+        android:autoSizeTextType="uniform"
         android:fontFamily="@font/cormorant"
         android:fontFeatureSettings="lnum"
+        android:format12Hour="h:mm"
+        android:format24Hour="HH:mm"
+        android:gravity="center"
         android:includeFontPadding="false"
         android:letterSpacing="0.03"
+        android:maxLines="1"
         android:shadowColor="#66DCEBFA"
         android:shadowRadius="14"
-        android:textColor="#DCEBFA"
-        android:textSize="64sp" />
+        android:textColor="#DCEBFA" />
 
     <ImageView
-        android:layout_width="200dp"
-        android:layout_height="16dp"
-        android:layout_marginTop="4dp"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="0.55"
         android:importantForAccessibility="no"
-        android:scaleType="fitXY"
+        android:scaleType="fitCenter"
         android:src="@drawable/widget_divider_celestial" />
 
     <TextClock
         android:id="@+id/widget_date"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:format12Hour="EEEE  ·  d MMMM"
-        android:format24Hour="EEEE  ·  d MMMM"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="0.8"
+        android:autoSizeMaxTextSize="22sp"
+        android:autoSizeMinTextSize="8sp"
+        android:autoSizeStepGranularity="1sp"
+        android:autoSizeTextType="uniform"
         android:fontFamily="@font/cormorant"
         android:fontFeatureSettings="lnum"
+        android:format12Hour="EEEE  ·  d MMMM"
+        android:format24Hour="EEEE  ·  d MMMM"
+        android:gravity="center"
+        android:includeFontPadding="false"
         android:letterSpacing="0.18"
+        android:maxLines="1"
         android:textAllCaps="true"
-        android:textColor="#B3CBE3"
-        android:textSize="12sp" />
+        android:textColor="#B3CBE3" />
 </LinearLayout>
