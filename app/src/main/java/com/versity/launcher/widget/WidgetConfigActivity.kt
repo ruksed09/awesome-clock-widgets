@@ -37,6 +37,18 @@ class WidgetConfigActivity : ComponentActivity() {
         }
         val store = WidgetStore(this)
         val existing = store.hasSystem(id)
+        // A widget designed in the app a moment ago and sent to the home screen: some home screens still
+        // open this screen while placing it. The design is already chosen, so it is applied at once;
+        // showing the studio again would look like the add had failed, and closing it would drop the widget.
+        if (!existing) store.recentDraft(type, withinMillis = JUST_DESIGNED)?.let { spec ->
+            store.saveSystem(id, spec)
+            store.dropDrafts(type)
+            Widgets.update(this, manager, id, type)
+            Widgets.changed()
+            setResult(RESULT_OK, Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id))
+            finish()
+            return
+        }
         val initial = if (existing) store.system(id, type) else store.recentDraft(type) ?: WidgetSpec.default(type)
         val settings = (application as LauncherApplication).container.settingsRepository.settings
 
@@ -62,7 +74,10 @@ class WidgetConfigActivity : ComponentActivity() {
                     wallpaperUri = s.wallpaperUri,
                     onConfirm = { spec ->
                         store.saveSystem(id, spec)
+                        // The design this started from (if any) is now on a widget, so it is not offered again.
+                        if (!existing) store.dropDrafts(type)
                         Widgets.update(this, manager, id, type)
+                        Widgets.changed()
                         setResult(RESULT_OK, Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id))
                         finish()
                     },
@@ -70,5 +85,10 @@ class WidgetConfigActivity : ComponentActivity() {
                 )
             }
         } }
+    }
+
+    private companion object {
+        /** How recent an in-app design must be to count as the one being placed now. */
+        const val JUST_DESIGNED = 3 * 60_000L
     }
 }

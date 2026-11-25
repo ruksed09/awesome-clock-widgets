@@ -23,6 +23,7 @@ import java.util.UUID
 abstract class VersityWidgetProvider(val type: WidgetType) : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
         ids.forEach { Widgets.update(context, manager, it, type) }
+        Widgets.changed()
         if (type == WidgetType.DATE) Widgets.scheduleMidnight(context)
         if (type == WidgetType.COUNTDOWN) Widgets.scheduleCountdown(context)
     }
@@ -35,6 +36,7 @@ abstract class VersityWidgetProvider(val type: WidgetType) : AppWidgetProvider()
     override fun onDeleted(context: Context, ids: IntArray) {
         val store = WidgetStore(context)
         ids.forEach(store::removeSystem)
+        Widgets.changed()
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -75,6 +77,7 @@ class WidgetPinnedReceiver : BroadcastReceiver() {
         val spec = WidgetStore(context).takeDraft(token) ?: return
         WidgetStore(context).saveSystem(id, spec)
         Widgets.update(context, AppWidgetManager.getInstance(context), id, spec.type)
+        Widgets.changed()
     }
 }
 
@@ -98,12 +101,34 @@ object Widgets {
     fun typeOf(provider: ComponentName?): WidgetType? =
         WidgetType.entries.firstOrNull { providerClass(it).name == provider?.className }
 
-    /** Widgets of ours on the phone's home screen, newest first. */
+    /**
+     * Goes up whenever a widget of ours is placed, removed or restyled on the phone's home screen, so
+     * screens listing them can refresh while they are open.
+     */
+    val changes = androidx.compose.runtime.mutableIntStateOf(0)
+
+    fun changed() { changes.intValue++ }
+
+    /**
+     * Widgets of ours on the phone's home screen, newest first. Android also counts widgets a home
+     * screen reserved but never showed (a placement that was abandoned half way), so only widgets the
+     * home screen has laid out, or that have a look saved, are counted.
+     */
     fun placed(context: Context): List<Pair<Int, WidgetType>> {
         val manager = AppWidgetManager.getInstance(context) ?: return emptyList()
+        val store = WidgetStore(context)
         return WidgetType.entries.flatMap { type ->
             runCatching { manager.getAppWidgetIds(ComponentName(context, providerClass(type))) }.getOrDefault(IntArray(0)).map { it to type }
-        }.sortedByDescending { it.first }
+        }.filter { (id, _) -> isShown(manager, id) || store.hasSystem(id) }
+            .sortedByDescending { it.first }
+    }
+
+    /** Whether the widget [id] is still on the phone's home screen. */
+    fun isPlaced(context: Context, id: Int): Boolean = placed(context).any { it.first == id }
+
+    private fun isShown(manager: AppWidgetManager, id: Int): Boolean {
+        val options = runCatching { manager.getAppWidgetOptions(id) }.getOrNull() ?: return false
+        return options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH) > 0 || options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH) > 0
     }
 
     fun update(context: Context, manager: AppWidgetManager, id: Int, type: WidgetType) {
@@ -134,14 +159,21 @@ object Widgets {
         return PendingIntent.getActivity(context, type.ordinal, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     }
 
+    /** A widget the home screen was asked to place: what to look for when the answer comes back. */
+    data class PendingPin(val token: String, val type: WidgetType, val before: Set<Int>)
+
     /**
      * Asks the current home app to place a widget with [spec]'s look. The look is kept as a draft until
-     * the home app confirms, then moved to the new widget. False when the home app can't pin widgets.
+     * the home app confirms, then moved to the new widget. Null when the home app can't pin widgets.
+     *
+     * The request carries a preview of the design, so the home screen's confirmation shows the widget as
+     * it will look. A preview too large to send is left out rather than losing the request.
      */
-    fun requestPin(context: Context, spec: WidgetSpec): Boolean {
-        val manager = AppWidgetManager.getInstance(context) ?: return false
-        if (!manager.isRequestPinAppWidgetSupported) return false
+    fun requestPin(context: Context, spec: WidgetSpec): PendingPin? {
+        val manager = AppWidgetManager.getInstance(context) ?: return null
+        if (!manager.isRequestPinAppWidgetSupported) return null
         val token = UUID.randomUUID().toString()
+        val before = placedIds(context, manager)
         WidgetStore(context).saveDraft(token, spec)
         val callback = PendingIntent.getBroadcast(
             context, token.hashCode(),
@@ -149,8 +181,34 @@ object Widgets {
             // The home app adds the new widget's id to this intent, so it must stay mutable.
             PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= 31) PendingIntent.FLAG_MUTABLE else 0),
         )
-        return runCatching { manager.requestPinAppWidget(ComponentName(context, providerClass(spec.type)), null, callback) }.getOrDefault(false)
+        val provider = ComponentName(context, providerClass(spec.type))
+        val preview = runCatching {
+            val (w, h) = if (spec.aspect >= 1.6f) 220 to 100 else 120 to 120
+            Bundle().apply { putParcelable(AppWidgetManager.EXTRA_APPWIDGET_PREVIEW, WidgetRenderer.build(context, spec, w, h)) }
+        }.getOrNull()
+        val asked = runCatching { manager.requestPinAppWidget(provider, preview, callback) }.getOrNull()
+            ?: runCatching { manager.requestPinAppWidget(provider, null, callback) }.getOrDefault(false)
+        if (!asked) {
+            WidgetStore(context).takeDraft(token)
+            return null
+        }
+        return PendingPin(token, spec.type, before)
     }
+
+    /**
+     * Whether the home screen placed the widget asked for in [pin]: it confirmed (and took the look), or a
+     * new widget of that family appeared.
+     */
+    fun wasPinned(context: Context, pin: PendingPin): Boolean {
+        if (!WidgetStore(context).hasDraft(pin.token)) return true
+        val manager = AppWidgetManager.getInstance(context) ?: return false
+        val now = runCatching { manager.getAppWidgetIds(ComponentName(context, providerClass(pin.type))) }.getOrDefault(IntArray(0))
+        return now.any { it !in pin.before }
+    }
+
+    private fun placedIds(context: Context, manager: AppWidgetManager): Set<Int> = WidgetType.entries.flatMap { type ->
+        runCatching { manager.getAppWidgetIds(ComponentName(context, providerClass(type))).toList() }.getOrDefault(emptyList())
+    }.toSet()
 
     /**
      * Redraws countdowns when the soonest one's day count drops (its timer reaches zero). The timer keeps

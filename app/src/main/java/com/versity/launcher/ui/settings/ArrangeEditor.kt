@@ -35,6 +35,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -70,6 +71,7 @@ import com.versity.launcher.widget.WidgetSpec
 import com.versity.launcher.widget.WidgetStore
 import com.versity.launcher.widget.WidgetType
 import kotlin.math.abs
+import kotlin.math.hypot
 import kotlin.math.roundToInt
 
 private val SnapLinesY = listOf(0.2f, 1f / 3f, 0.5f, 2f / 3f)
@@ -95,6 +97,8 @@ internal fun ArrangeEditor(
     var lock by remember { mutableStateOf(settings.lockClockPlacement) }
     var widgets by remember { mutableStateOf(settings.homeWidgets) }
     var picked by remember { mutableStateOf(CLOCK) }
+    // Whether the user has picked something yet; until then the clock is only selected by default.
+    var chosen by remember { mutableStateOf(false) }
     var snapX by remember { mutableStateOf(false) }
     var snapY by remember { mutableStateOf<Float?>(null) }
     val specs = remember(widgets) { widgets.associate { it.id to (store.home(it.id) ?: WidgetSpec.default(WidgetType.DIGITAL)) } }
@@ -111,6 +115,12 @@ internal fun ArrangeEditor(
             key == CLOCK -> lock = p
             p != null -> widgets = widgets.map { if ("w${it.id}" == key) it.copy(placement = p) else it }
         }
+    }
+    /** The clock's box in pixels on a [w] x [h] screen, roughly where its digits or dial are drawn. */
+    fun clockBox(p: ClockPlacement, w: Float, h: Float): Pair<Float, Float> {
+        val analogue = settings.clockStyle == ClockStyle.ANALOGUE
+        val cw = w * 0.86f * p.scale * if (analogue) 0.62f else 1f
+        return cw to cw * if (analogue) 1f else 0.45f
     }
     BackHandler(onBack = onCancel)
 
@@ -131,17 +141,22 @@ internal fun ArrangeEditor(
                         val down = awaitFirstDown(requireUnconsumed = false)
                         val w = size.width.toFloat()
                         val h = size.height.toFloat()
-                        // Pick what is under the finger: widgets are drawn below the clock, so the clock wins.
+                        // Pick what is under the finger. What the user picked keeps the drag when it is under the
+                        // finger too; otherwise the item whose centre is nearest wins, so a widget close to
+                        // the clock can be grabbed as easily as the clock.
                         if (target == ApplyTarget.HOME) {
-                            val clock = (home ?: ClockPlacement.DEFAULT)
-                            val clockW = w * 0.86f * clock.scale * if (settings.clockStyle == ClockStyle.ANALOGUE) 0.62f else 1f
-                            val clockH = clockW * if (settings.clockStyle == ClockStyle.ANALOGUE) 1f else 0.45f
-                            val inClock = abs(down.position.x - clock.x * w) < clockW / 2 && abs(down.position.y - clock.y * h) < clockH / 2
-                            val hit = if (inClock) CLOCK else widgets.lastOrNull { hw ->
-                                val (ww, wh) = widgetSize(hw.placement, specs.getValue(hw.id), w.roundToInt(), h.roundToInt())
-                                abs(down.position.x - hw.placement.x * w) < ww / 2f && abs(down.position.y - hw.placement.y * h) < wh / 2f
-                            }?.let { "w${it.id}" }
-                            if (hit != null) picked = hit
+                            val under = buildList {
+                                val (cw, ch) = clockBox(home ?: ClockPlacement.DEFAULT, w, h)
+                                val clock = home ?: ClockPlacement.DEFAULT
+                                add(Hit(CLOCK, clock.x * w, clock.y * h, cw, ch))
+                                widgets.forEach { hw ->
+                                    val (ww, wh) = widgetSize(hw.placement, specs.getValue(hw.id), w.roundToInt(), h.roundToInt())
+                                    val (cx, cy) = onScreen(hw.placement, ww, wh, w, h)
+                                    add(Hit("w${hw.id}", cx, cy, ww.toFloat(), wh.toFloat()))
+                                }
+                            }.filter { it.contains(down.position) }
+                            val hit = under.firstOrNull { chosen && it.key == picked } ?: under.minByOrNull { it.distance(down.position) }
+                            if (hit != null) { picked = hit.key; chosen = true }
                         }
                         val key = if (target == ApplyTarget.HOME) picked else CLOCK
                         var raw = placementOf(key) ?: ClockPlacement.DEFAULT
@@ -150,6 +165,13 @@ internal fun ArrangeEditor(
                             val pan = event.calculatePan()
                             val zoom = event.calculateZoom()
                             raw = ClockPlacement(raw.x + pan.x / w, raw.y + pan.y / h, raw.scale * zoom).clamped()
+                            // A widget is kept whole on screen, so its centre stops where it is drawn: no dead
+                            // stretch at the edges where the finger moves and the widget does not.
+                            widgets.firstOrNull { "w${it.id}" == key }?.let { hw ->
+                                val (ww, wh) = widgetSize(raw, specs.getValue(hw.id), w.roundToInt(), h.roundToInt())
+                                val (cx, cy) = onScreen(raw, ww, wh, w, h)
+                                raw = raw.copy(x = cx / w, y = cy / h)
+                            }
                             val sx = abs(raw.x - 0.5f) < 0.025f
                             val sy = SnapLinesY.firstOrNull { abs(raw.y - it) < 0.018f }
                             if ((sx && !snapX) || (sy != null && sy != snapY)) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -202,11 +224,11 @@ internal fun ArrangeEditor(
         ) {
             if (target == ApplyTarget.HOME && widgets.isNotEmpty()) {
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    StudioChip("Clock", selected == CLOCK, "arrange_clock") { picked = CLOCK }
+                    StudioChip("Clock", selected == CLOCK, "arrange_clock") { picked = CLOCK; chosen = true }
                     widgets.forEachIndexed { i, hw ->
                         val spec = specs.getValue(hw.id)
                         val same = widgets.take(i).count { specs.getValue(it.id).type == spec.type }
-                        StudioChip(spec.type.title + if (same > 0) " ${same + 1}" else "", selected == "w${hw.id}", "arrange_w${hw.id}") { picked = "w${hw.id}" }
+                        StudioChip(spec.type.title + if (same > 0) " ${same + 1}" else "", selected == "w${hw.id}", "arrange_w${hw.id}") { picked = "w${hw.id}"; chosen = true }
                     }
                 }
             } else {
@@ -237,6 +259,20 @@ internal fun ArrangeEditor(
             }
         }
     }
+}
+
+/** Something that can be picked up: its key and its box on screen, centre and size in pixels. */
+private class Hit(val key: String, val cx: Float, val cy: Float, val width: Float, val height: Float) {
+    fun contains(p: Offset) = abs(p.x - cx) <= width / 2f && abs(p.y - cy) <= height / 2f
+    /** Distance from the centre, measured in box sizes, so a large and a small item compare fairly. */
+    fun distance(p: Offset) = hypot((p.x - cx) / width, (p.y - cy) / height)
+}
+
+/** Centre in pixels where a [ww] x [wh] widget at [p] is drawn on a [w] x [h] screen: kept whole on screen. */
+private fun onScreen(p: ClockPlacement, ww: Int, wh: Int, w: Float, h: Float): Pair<Float, Float> {
+    val cx = (p.x * w).coerceIn(ww / 2f, maxOf(ww / 2f, w - ww / 2f))
+    val cy = (p.y * h).coerceIn(wh / 2f, maxOf(wh / 2f, h - wh / 2f))
+    return cx to cy
 }
 
 /** Editor bars sit over a live screen, so they are opaque surfaces with a hairline, keeping controls legible. */

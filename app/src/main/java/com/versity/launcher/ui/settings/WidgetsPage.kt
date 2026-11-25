@@ -35,6 +35,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.versity.launcher.R
 import com.versity.launcher.data.LauncherSettings
 import com.versity.launcher.ui.TestTags
@@ -69,7 +70,14 @@ internal fun WidgetsPage(
     val context = LocalContext.current
     val store = remember(context) { WidgetStore(context) }
     var placed by remember { mutableStateOf(emptyList<Pair<Int, WidgetType>>()) }
-    LaunchedEffect(Unit) { placed = Widgets.placed(context) }
+    // Widgets can be removed or added on the home screen while this page is open or in the background,
+    // so the list is read again whenever that happens and whenever the page comes back into view.
+    val changes = Widgets.changes.intValue
+    LaunchedEffect(changes) { placed = Widgets.placed(context) }
+    LifecycleResumeEffect(Unit) {
+        placed = Widgets.placed(context)
+        onPauseOrDispose { }
+    }
     val looksVersion = HomeWidgetLooks.version.intValue
 
     PageBody(max = 1040.dp) {

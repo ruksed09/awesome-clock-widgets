@@ -48,6 +48,8 @@ class WidgetStore(context: Context) {
         .putLong(draftKey(token) + "_at", System.currentTimeMillis())
         .apply()
 
+    fun hasDraft(token: String): Boolean = prefs.contains(draftKey(token))
+
     /** Takes the draft out of the store: a draft is used once. */
     fun takeDraft(token: String): WidgetSpec? {
         val raw = prefs.getString(draftKey(token), null) ?: return null
@@ -57,11 +59,12 @@ class WidgetStore(context: Context) {
     }
 
     /**
-     * The newest draft of [type] made in the last few minutes, if any. Some home screens open the
-     * configuration screen for a pinned widget before confirming the pin; this lets it start from the
-     * look the user just designed instead of the defaults.
+     * The newest draft of [type] made in the last half hour, if any. Some home screens open the
+     * configuration screen for a pinned widget before confirming the pin, and when a home screen will
+     * not pin at all the user adds the widget from its widget list instead; either way the studio
+     * starts from the look the user just designed instead of the defaults.
      */
-    fun recentDraft(type: WidgetType, withinMillis: Long = 5 * 60_000L): WidgetSpec? {
+    fun recentDraft(type: WidgetType, withinMillis: Long = 30 * 60_000L): WidgetSpec? {
         val now = System.currentTimeMillis()
         return prefs.all.keys.asSequence()
             .filter { it.startsWith("draft_") && it.endsWith("_type") && prefs.getString(it, null) == type.name }
@@ -70,6 +73,14 @@ class WidgetStore(context: Context) {
             .filter { (_, at) -> now - at in 0..withinMillis }
             .maxByOrNull { (_, at) -> at }
             ?.let { (key, _) -> WidgetSpec.decode(prefs.getString(key, null), type) }
+    }
+
+    /** Removes every draft of [type]: its look has found its widget. */
+    fun dropDrafts(type: WidgetType) {
+        val keys = prefs.all.keys.filter { it.startsWith("draft_") && it.endsWith("_type") && prefs.getString(it, null) == type.name }
+            .map { it.removeSuffix("_type") }
+        if (keys.isEmpty()) return
+        prefs.edit().apply { keys.forEach { remove(it).remove(it + "_type").remove(it + "_at") } }.apply()
     }
 
     private fun systemKey(id: Int) = "w_$id"

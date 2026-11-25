@@ -33,6 +33,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
@@ -78,6 +79,7 @@ import com.versity.launcher.data.IconStyle
 import com.versity.launcher.data.Ornament
 import com.versity.launcher.widget.WidgetSpec
 import com.versity.launcher.widget.WidgetStore
+import com.versity.launcher.widget.WidgetType
 import com.versity.launcher.widget.Widgets
 import com.versity.launcher.ui.home.HomeActions
 import com.versity.launcher.ui.home.components.HomeWidgetLooks
@@ -124,6 +126,15 @@ class MainActivity : ComponentActivity() {
     }
 
     private val appLauncher by lazy { AppLauncher(this) }
+
+    /** What the Widgets page reports about the last widget added to the phone's home screen. */
+    private var widgetStatus by mutableStateOf<String?>(null)
+
+    /** A widget the phone's home screen was asked to place, until its answer is known. */
+    private var pendingPin: Widgets.PendingPin? = null
+
+    /** Whether anything (the home screen's add-widget prompt) came over the app since [pendingPin] was asked. */
+    private var pausedSincePin = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -178,7 +189,6 @@ class MainActivity : ComponentActivity() {
             }
             var previewingLock by remember { mutableStateOf(false) }
             var lockWallpaperStatus by remember { mutableStateOf<String?>(null) }
-            var widgetStatus by remember { mutableStateOf<String?>(null) }
             var customiseRequest by remember { mutableStateOf<CustomiseRequest?>(null) }
             // The themed lock screen follows the phone's real lock state; there is no separate in-app lock.
             val lockUi = home.loaded && home.settings.lockStyleEnabled && systemLocked
@@ -335,6 +345,7 @@ class MainActivity : ComponentActivity() {
                                 is StudioTarget.System -> {
                                     store.saveSystem(target.id, spec)
                                     Widgets.update(context, AppWidgetManager.getInstance(context), target.id, target.type)
+                                    Widgets.changed()
                                 }
                                 is StudioTarget.Home -> { store.saveHome(target.id, spec); HomeWidgetLooks.changed() }
                                 is StudioTarget.New -> Unit
@@ -520,11 +531,44 @@ class MainActivity : ComponentActivity() {
             Toast.makeText(this, "Added to your home screen. Long-press it to edit, move or remove it.", Toast.LENGTH_LONG).show()
             return null
         }
-        if (Widgets.requestPin(this, spec)) {
-            Toast.makeText(this, "Your home screen will ask where to put the widget.", Toast.LENGTH_LONG).show()
+        widgetStatus = null
+        val pin = Widgets.requestPin(this, spec)
+        if (pin != null) {
+            pendingPin = pin
+            pausedSincePin = false
+            // Home screens show their add-widget prompt over the app straight away. If nothing has come
+            // over it after a moment, this home screen ignored the request, which some do.
+            window.decorView.postDelayed({
+                if (pendingPin == pin && !pausedSincePin && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                    pendingPin = null
+                    if (!Widgets.wasPinned(this, pin)) widgetStatus = notAdded(pin.type, ignored = true)
+                }
+            }, 1_500)
             return null
         }
         return "Your home screen app can't add widgets from here. Long-press an empty spot on it, choose Widgets, then find Versity: the studio opens with these choices."
+    }
+
+    /** Back from the home screen's prompt: say whether the widget went on, and where to look for it. */
+    private fun checkPendingPin() {
+        val pin = pendingPin ?: return
+        if (!pausedSincePin) return
+        // The home screen's confirmation can arrive a moment after the prompt closes.
+        window.decorView.postDelayed({
+            if (pendingPin != pin) return@postDelayed
+            pendingPin = null
+            widgetStatus = if (Widgets.wasPinned(this, pin)) {
+                Widgets.changed()
+                "${pin.type.title} added. Your home screen puts it in the first free space, which can be on another page; long-press it there to move or resize it."
+            } else {
+                notAdded(pin.type, ignored = false)
+            }
+        }, 700)
+    }
+
+    private fun notAdded(type: WidgetType, ignored: Boolean): String {
+        val why = if (ignored) "Your home screen app didn't respond to the request to add the widget." else "The widget wasn't added."
+        return "$why You can add it from your home screen: long-press an empty spot, tap Widgets, find Versity and pick ${type.title}. Your design is kept and goes on it."
     }
 
     private fun removeHomeWidget(id: Int, settings: LauncherSettings, customiseVm: CustomiseViewModel) {
@@ -541,8 +585,14 @@ class MainActivity : ComponentActivity() {
         if (isAppLaunch(intent)) { openedAsApp = true; appSignal++ }
     }
 
+    override fun onPause() {
+        super.onPause()
+        if (pendingPin != null) pausedSincePin = true
+    }
+
     override fun onResume() {
         super.onResume()
+        checkPendingPin()
         systemLocked = keyguard?.isKeyguardLocked == true
         (application as LauncherApplication).container.isDefaultLauncher.value = DefaultLauncherCheck.isDefault(this)
     }

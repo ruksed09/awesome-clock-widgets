@@ -351,18 +351,30 @@ fun CustomiseContent(
                     is StudioTarget.Home -> store.home(target.id) ?: WidgetSpec.default(WidgetType.DIGITAL)
                 }
             }
+            // A widget on the phone's home screen can be removed while it is being edited. Then there is
+            // nothing left to save to, so the studio offers to add it again instead.
+            val changes = com.versity.launcher.widget.Widgets.changes.intValue
+            var gone by remember(target) { mutableStateOf(false) }
+            if (target is StudioTarget.System) {
+                LaunchedEffect(target, changes) { gone = !com.versity.launcher.widget.Widgets.isPlaced(context, target.id) }
+                androidx.lifecycle.compose.LifecycleResumeEffect(target) {
+                    gone = !com.versity.launcher.widget.Widgets.isPlaced(context, target.id)
+                    onPauseOrDispose { }
+                }
+            }
+            val adding = target is StudioTarget.New || gone
             WidgetStudio(
                 initial = initial,
-                title = if (target is StudioTarget.New) "New widget" else "Edit widget",
-                confirmLabel = if (target is StudioTarget.New) "Add to home screen" else "Save",
-                compactConfirmLabel = if (target is StudioTarget.New) "Add" else null,
+                title = if (adding) "New widget" else "Edit widget",
+                confirmLabel = if (adding) "Add to home screen" else "Save",
+                compactConfirmLabel = if (adding) "Add" else null,
                 wallpaperUri = settings.wallpaperUri,
-                message = studioMessage,
+                message = studioMessage ?: if (gone) "This widget is no longer on your home screen. Add it again with this look, or close." else null,
                 destructive = (target as? StudioTarget.Home)?.let { home ->
                     "Remove from home screen" to { actions.onRemoveHomeWidget(home.id); studio = null; finishOverlay() }
                 },
                 onConfirm = { spec ->
-                    if (target is StudioTarget.New) {
+                    if (adding) {
                         val message = actions.onCreateWidget(spec)
                         if (message != null) studioMessage = message else { studio = null; finishOverlay() }
                     } else {
